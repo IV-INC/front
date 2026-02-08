@@ -246,6 +246,7 @@ async function syncGA4Metrics(
 
   // Try Analytics Admin API first, fall back to Analytics Data API discovery
   let propertyId: string | null = null;
+  const apiErrors: string[] = [];
 
   const accountsRes = await fetch(
     'https://analyticsadmin.googleapis.com/v1beta/accountSummaries',
@@ -254,14 +255,18 @@ async function syncGA4Metrics(
 
   if (accountsRes.ok) {
     const accountsData = await accountsRes.json();
+    console.log('GA4 accountSummaries response:', JSON.stringify(accountsData).slice(0, 500));
     const firstProperty = accountsData.accountSummaries?.[0]?.propertySummaries?.[0];
     if (firstProperty) {
       propertyId = firstProperty.property.replace('properties/', '');
       console.log('Found GA4 property via Admin API:', propertyId);
+    } else {
+      apiErrors.push(`Admin API returned no properties (accounts: ${accountsData.accountSummaries?.length || 0})`);
     }
   } else {
     const errBody = await accountsRes.text();
-    console.warn('GA4 Admin API failed (will try fallback):', accountsRes.status, errBody);
+    apiErrors.push(`Admin API ${accountsRes.status}: ${errBody.slice(0, 300)}`);
+    console.warn('GA4 Admin API failed:', accountsRes.status, errBody);
   }
 
   // If Admin API failed or returned no properties, try listing accessible properties
@@ -272,19 +277,23 @@ async function syncGA4Metrics(
     );
     if (propsRes.ok) {
       const propsData = await propsRes.json();
+      console.log('GA4 properties list response:', JSON.stringify(propsData).slice(0, 500));
       const firstProp = propsData.properties?.[0];
       if (firstProp) {
         propertyId = firstProp.name.replace('properties/', '');
         console.log('Found GA4 property via properties list:', propertyId);
+      } else {
+        apiErrors.push('Properties list returned empty');
       }
     } else {
       const errBody = await propsRes.text();
+      apiErrors.push(`Properties list ${propsRes.status}: ${errBody.slice(0, 300)}`);
       console.warn('GA4 properties list failed:', propsRes.status, errBody);
     }
   }
 
   if (!propertyId) {
-    throw new Error('No GA4 property found. Make sure Google Analytics is set up for this account.');
+    throw new Error(`No GA4 property found. Details: ${apiErrors.join(' | ')}`);
   }
 
   const now = new Date();
