@@ -131,10 +131,14 @@ serve(async (req) => {
     const placeholder = companyId || 'preview';
     let metrics: MetricRow[] = [];
 
+    let discoveredPropertyId: string | null = null;
+
     if (provider === 'stripe') {
       metrics = await syncStripeMetrics(placeholder, code, redirectUri);
     } else if (provider === 'ga4') {
-      metrics = await syncGA4Metrics(placeholder, code, redirectUri, ga4PropertyId);
+      const result = await syncGA4Metrics(placeholder, code, redirectUri, ga4PropertyId);
+      metrics = result.metrics;
+      discoveredPropertyId = result.propertyId;
     }
 
     // Only save to DB if companyId is provided
@@ -151,14 +155,18 @@ serve(async (req) => {
         }
       }
 
-      // Update company connection status
+      // Update company connection status + save discovered property ID
       const connectionField = provider === 'stripe' ? 'stripe_connected' : 'ga4_connected';
+      const updatePayload: Record<string, unknown> = {
+        [connectionField]: true,
+        last_data_update: new Date().toISOString(),
+      };
+      if (discoveredPropertyId) {
+        updatePayload.ga4_property_id = discoveredPropertyId;
+      }
       await supabase
         .from('companies')
-        .update({
-          [connectionField]: true,
-          last_data_update: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', companyId);
     }
 
@@ -234,7 +242,7 @@ async function syncGA4Metrics(
   code: string,
   redirectUri: string,
   knownPropertyId: string | null = null
-): Promise<MetricRow[]> {
+): Promise<{ metrics: MetricRow[]; propertyId: string }> {
   const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
   const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
   if (!googleClientSecret || !googleClientId) {
@@ -352,7 +360,11 @@ async function syncGA4Metrics(
   const reportData = await reportRes.json();
   if (!reportRes.ok) {
     console.error('GA4 report error:', JSON.stringify(reportData));
-    throw new Error(`Failed to fetch GA4 report: ${reportData.error?.message || reportRes.status}`);
+    const errMsg = reportData.error?.message || `HTTP ${reportRes.status}`;
+    if (reportRes.status === 403 && errMsg.includes('not been used in project')) {
+      throw new Error(`Google Analytics Data API is not enabled. Enable it at: https://console.developers.google.com/apis/api/analyticsdata.googleapis.com/overview`);
+    }
+    throw new Error(`GA4 report failed (property ${propertyId}): ${errMsg}`);
   }
 
   const metrics: MetricRow[] = [];
@@ -372,5 +384,5 @@ async function syncGA4Metrics(
     });
   }
 
-  return metrics;
+  return { metrics, propertyId };
 }
