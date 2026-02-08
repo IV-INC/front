@@ -1110,39 +1110,65 @@ export function CompanyEdit() {
                 </div>
 
                 {/* GA4 */}
-                <div className={`flex items-center justify-between px-4 py-3 rounded-lg border ${
+                <div className={`px-4 py-3 rounded-lg border ${
                   company.ga4_connected
                     ? 'bg-green-500/10 border-green-500/30 text-green-400'
                     : 'bg-secondary border-border text-muted-foreground'
                 }`}>
-                  <div className="flex items-center gap-3">
-                    <GA4Icon className="w-5 h-5" />
-                    <div>
-                      <p className="text-sm font-medium">Google Analytics 4</p>
-                      <p className="text-xs opacity-80">
-                        {company.ga4_connected ? 'Connected' : 'Not Connected'}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <GA4Icon className="w-5 h-5" />
+                      <div>
+                        <p className="text-sm font-medium">Google Analytics 4</p>
+                        <p className="text-xs opacity-80">
+                          {company.ga4_connected ? 'Connected' : 'Not Connected'}
+                        </p>
+                      </div>
+                    </div>
+                    {company.ga4_connected ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDisconnectIntegration('ga4')}
+                        disabled={disconnectLoading === 'ga4'}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        {disconnectLoading === 'ga4' ? (
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        ) : 'Disconnect'}
+                      </Button>
+                    ) : (
+                      <Button type="button" variant="outline" size="sm" onClick={() => initiateGoogleOAuth()} className="gap-2">
+                        <GA4Icon className="w-4 h-4" />
+                        Connect GA4
+                      </Button>
+                    )}
+                  </div>
+                  {/* GA4 Property ID input */}
+                  <div className="mt-2 pt-2 border-t border-border/50">
+                    <label className="text-xs text-muted-foreground block mb-1">
+                      GA4 Property ID (Google Analytics → Admin → Property Settings)
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. 123456789"
+                        defaultValue={company.ga4_property_id || ''}
+                        className="flex-1 text-sm px-2 py-1 rounded border border-border bg-background text-foreground placeholder:text-muted-foreground"
+                        onBlur={async (e) => {
+                          const val = e.target.value.trim() || null;
+                          if (val !== (company.ga4_property_id || null)) {
+                            await supabase
+                              .from('companies')
+                              .update({ ga4_property_id: val })
+                              .eq('id', company.id);
+                            setCompany({ ...company, ga4_property_id: val });
+                          }
+                        }}
+                      />
                     </div>
                   </div>
-                  {company.ga4_connected ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDisconnectIntegration('ga4')}
-                      disabled={disconnectLoading === 'ga4'}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      {disconnectLoading === 'ga4' ? (
-                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      ) : 'Disconnect'}
-                    </Button>
-                  ) : (
-                    <Button type="button" variant="outline" size="sm" onClick={() => initiateGoogleOAuth()} className="gap-2">
-                      <GA4Icon className="w-4 h-4" />
-                      Connect GA4
-                    </Button>
-                  )}
                 </div>
               </div>
 

@@ -12,6 +12,7 @@ interface SyncRequest {
   provider: 'stripe' | 'ga4';
   code: string;
   redirectUri: string;
+  ga4PropertyId?: string; // optional: skip Admin API discovery if provided
 }
 
 interface MetricRow {
@@ -53,7 +54,7 @@ serve(async (req) => {
 
     const body: SyncRequest = await req.json();
     let { companyId } = body;
-    const { userId: bodyUserId, provider, code, redirectUri } = body;
+    const { userId: bodyUserId, provider, code, redirectUri, ga4PropertyId: bodyGa4PropertyId } = body;
 
     // Use auth-verified userId if available, otherwise fall back to body userId
     if (!userId && bodyUserId) {
@@ -112,6 +113,20 @@ serve(async (req) => {
       }
     }
 
+    // Resolve GA4 property ID: body param > company record > auto-discover
+    let ga4PropertyId = bodyGa4PropertyId || null;
+    if (!ga4PropertyId && companyId && provider === 'ga4') {
+      const { data: companyRow } = await supabase
+        .from('companies')
+        .select('ga4_property_id')
+        .eq('id', companyId)
+        .single();
+      if (companyRow?.ga4_property_id) {
+        ga4PropertyId = companyRow.ga4_property_id;
+        console.log('Using ga4_property_id from company record:', ga4PropertyId);
+      }
+    }
+
     // Fetch metrics from external API
     const placeholder = companyId || 'preview';
     let metrics: MetricRow[] = [];
@@ -119,7 +134,7 @@ serve(async (req) => {
     if (provider === 'stripe') {
       metrics = await syncStripeMetrics(placeholder, code, redirectUri);
     } else if (provider === 'ga4') {
-      metrics = await syncGA4Metrics(placeholder, code, redirectUri);
+      metrics = await syncGA4Metrics(placeholder, code, redirectUri, ga4PropertyId);
     }
 
     // Only save to DB if companyId is provided
@@ -217,7 +232,8 @@ async function syncStripeMetrics(
 async function syncGA4Metrics(
   companyId: string,
   code: string,
-  redirectUri: string
+  redirectUri: string,
+  knownPropertyId: string | null = null
 ): Promise<MetricRow[]> {
   const googleClientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
   const googleClientId = Deno.env.get('GOOGLE_CLIENT_ID');
@@ -244,56 +260,67 @@ async function syncGA4Metrics(
 
   const accessToken = tokenData.access_token;
 
-  // Try Analytics Admin API first, fall back to Analytics Data API discovery
-  let propertyId: string | null = null;
-  const apiErrors: string[] = [];
+  // Use known property ID if provided, otherwise try Admin API discovery
+  let propertyId: string | null = knownPropertyId || null;
 
-  const accountsRes = await fetch(
-    'https://analyticsadmin.googleapis.com/v1beta/accountSummaries',
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-
-  if (accountsRes.ok) {
-    const accountsData = await accountsRes.json();
-    console.log('GA4 accountSummaries response:', JSON.stringify(accountsData).slice(0, 500));
-    const firstProperty = accountsData.accountSummaries?.[0]?.propertySummaries?.[0];
-    if (firstProperty) {
-      propertyId = firstProperty.property.replace('properties/', '');
-      console.log('Found GA4 property via Admin API:', propertyId);
-    } else {
-      apiErrors.push(`Admin API returned no properties (accounts: ${accountsData.accountSummaries?.length || 0})`);
-    }
+  if (propertyId) {
+    // Strip "properties/" prefix if present
+    propertyId = propertyId.replace('properties/', '');
+    console.log('Using provided GA4 property ID:', propertyId);
   } else {
-    const errBody = await accountsRes.text();
-    apiErrors.push(`Admin API ${accountsRes.status}: ${errBody.slice(0, 300)}`);
-    console.warn('GA4 Admin API failed:', accountsRes.status, errBody);
-  }
+    // Try Analytics Admin API discovery
+    const apiErrors: string[] = [];
 
-  // If Admin API failed or returned no properties, try listing accessible properties
-  if (!propertyId) {
-    const propsRes = await fetch(
-      'https://analyticsadmin.googleapis.com/v1beta/properties?filter=parent:accounts/-',
+    const accountsRes = await fetch(
+      'https://analyticsadmin.googleapis.com/v1beta/accountSummaries',
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    if (propsRes.ok) {
-      const propsData = await propsRes.json();
-      console.log('GA4 properties list response:', JSON.stringify(propsData).slice(0, 500));
-      const firstProp = propsData.properties?.[0];
-      if (firstProp) {
-        propertyId = firstProp.name.replace('properties/', '');
-        console.log('Found GA4 property via properties list:', propertyId);
+
+    if (accountsRes.ok) {
+      const accountsData = await accountsRes.json();
+      console.log('GA4 accountSummaries response:', JSON.stringify(accountsData).slice(0, 500));
+      const firstProperty = accountsData.accountSummaries?.[0]?.propertySummaries?.[0];
+      if (firstProperty) {
+        propertyId = firstProperty.property.replace('properties/', '');
+        console.log('Found GA4 property via Admin API:', propertyId);
       } else {
-        apiErrors.push('Properties list returned empty');
+        apiErrors.push(`Admin API returned no properties (accounts: ${accountsData.accountSummaries?.length || 0})`);
       }
     } else {
-      const errBody = await propsRes.text();
-      apiErrors.push(`Properties list ${propsRes.status}: ${errBody.slice(0, 300)}`);
-      console.warn('GA4 properties list failed:', propsRes.status, errBody);
+      const errBody = await accountsRes.text();
+      apiErrors.push(`Admin API ${accountsRes.status}: ${errBody.slice(0, 300)}`);
+      console.warn('GA4 Admin API failed:', accountsRes.status, errBody);
     }
-  }
 
-  if (!propertyId) {
-    throw new Error(`No GA4 property found. Details: ${apiErrors.join(' | ')}`);
+    // If Admin API failed or returned no properties, try listing accessible properties
+    if (!propertyId) {
+      const propsRes = await fetch(
+        'https://analyticsadmin.googleapis.com/v1beta/properties?filter=parent:accounts/-',
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (propsRes.ok) {
+        const propsData = await propsRes.json();
+        console.log('GA4 properties list response:', JSON.stringify(propsData).slice(0, 500));
+        const firstProp = propsData.properties?.[0];
+        if (firstProp) {
+          propertyId = firstProp.name.replace('properties/', '');
+          console.log('Found GA4 property via properties list:', propertyId);
+        } else {
+          apiErrors.push('Properties list returned empty');
+        }
+      } else {
+        const errBody = await propsRes.text();
+        apiErrors.push(`Properties list ${propsRes.status}: ${errBody.slice(0, 300)}`);
+        console.warn('GA4 properties list failed:', propsRes.status, errBody);
+      }
+    }
+
+    if (!propertyId) {
+      throw new Error(
+        `No GA4 property found. Please enter your GA4 Property ID manually in Company Edit page. ` +
+        `You can find it in Google Analytics → Admin → Property Settings. Details: ${apiErrors.join(' | ')}`
+      );
+    }
   }
 
   const now = new Date();

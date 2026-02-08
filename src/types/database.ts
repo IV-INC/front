@@ -74,12 +74,13 @@ export interface Database {
           rejection_reason: string | null;
           stripe_connected: boolean;
           ga4_connected: boolean;
+          ga4_property_id: string | null;
           last_data_update: string | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['companies']['Row'], 'id' | 'created_at' | 'updated_at' | 'is_visible' | 'approval_status' | 'reviewed_at' | 'reviewed_by' | 'rejection_reason' | 'stripe_connected' | 'ga4_connected' | 'last_data_update'>;
-        Update: Partial<Database['public']['Tables']['companies']['Insert']> & { is_visible?: boolean; approval_status?: ApprovalStatus; reviewed_at?: string; reviewed_by?: string | null; rejection_reason?: string | null; stripe_connected?: boolean; ga4_connected?: boolean };
+        Insert: Omit<Database['public']['Tables']['companies']['Row'], 'id' | 'created_at' | 'updated_at' | 'is_visible' | 'approval_status' | 'reviewed_at' | 'reviewed_by' | 'rejection_reason' | 'stripe_connected' | 'ga4_connected' | 'ga4_property_id' | 'last_data_update'> & { stripe_connected?: boolean; ga4_connected?: boolean; ga4_property_id?: string | null };
+        Update: Partial<Database['public']['Tables']['companies']['Insert']> & { is_visible?: boolean; approval_status?: ApprovalStatus; reviewed_at?: string; reviewed_by?: string | null; rejection_reason?: string | null; stripe_connected?: boolean; ga4_connected?: boolean; ga4_property_id?: string | null };
         Relationships: [];
       };
       executives: {

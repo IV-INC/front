@@ -60,7 +60,7 @@ export function OAuthCallback() {
         };
 
         // Read session from localStorage directly (avoids Supabase auth API hangs)
-        const { userId, accessToken } = readSessionFromStorage();
+        const { userId } = readSessionFromStorage();
         const redirectPath = userId ? '/company/edit' : (callbackResult.returnPath || '/company/register');
 
         // Call sync-metrics Edge Function via direct fetch (avoids supabase.functions.invoke hangs)
@@ -70,11 +70,9 @@ export function OAuthCallback() {
         const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
         const redirectUri = `${baseUrl}/oauth/callback`;
 
-        setSyncDetail(`provider=${callbackResult.provider}, userId=${userId || 'none'}, token=${accessToken ? 'yes' : 'no'}`);
-
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 20000);
+          const timeout = setTimeout(() => controller.abort(), 25000);
 
           const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -101,20 +99,20 @@ export function OAuthCallback() {
           clearTimeout(timeout);
 
           const data = await res.json();
-          setSyncDetail(prev => prev + ` | status=${res.status} data=${JSON.stringify(data).slice(0, 200)}`);
 
           if (!res.ok || data.error) {
             const errMsg = data.error || `HTTP ${res.status}`;
             integrations[callbackResult.provider!].syncError = errMsg;
-            setSyncDetail(prev => prev + ` | ERROR: ${errMsg}`);
+            setSyncDetail(errMsg);
           } else if (data.metrics?.length) {
             integrations[callbackResult.provider!].metrics = data.metrics;
+            setSyncDetail(`${data.metrics.length} metrics synced`);
           }
         } catch (syncErr) {
           console.warn('Metrics sync failed (non-blocking):', syncErr);
           const errMsg = syncErr instanceof Error ? syncErr.message : 'Sync failed';
           integrations[callbackResult.provider!].syncError = errMsg;
-          setSyncDetail(prev => prev + ` | CATCH: ${errMsg}`);
+          setSyncDetail(errMsg);
         }
 
         localStorage.setItem('pending_integrations', JSON.stringify(integrations));
