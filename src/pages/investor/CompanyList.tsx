@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   ChevronLeft,
   ChevronRight,
+  Star,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -35,6 +36,12 @@ const stageOptions = [
   { value: 'Series C+', label: 'Series C+' },
 ];
 
+const sortOptions = [
+  { value: 'newest', label: 'Newest Signup' },
+  { value: 'most_active', label: 'Most Active' },
+  { value: 'revenue_growth', label: 'Revenue Growth' },
+];
+
 export function CompanyList() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -43,9 +50,11 @@ export function CompanyList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   const [stage, setStage] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
   const [savedCompanies, setSavedCompanies] = useState<Set<string>>(new Set());
   const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [revenueGrowthMap, setRevenueGrowthMap] = useState<Record<string, number>>({});
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -54,17 +63,78 @@ export function CompanyList() {
     async function fetchCompanies() {
       setLoading(true);
       try {
+        let orderCol = 'created_at';
+        if (sortBy === 'most_active') orderCol = 'updated_at';
+
         let query = supabase
           .from('companies')
           .select('*')
           .eq('is_visible', true)
-          .order('created_at', { ascending: false });
+          .neq('is_blocked', true)
+          .order(orderCol, { ascending: false });
 
         if (category) query = query.eq('category', category as CompanyCategory);
         if (stage) query = query.eq('stage', stage as CompanyStage);
 
         const { data } = await query;
-        if (!cancelled) setCompanies(data ?? []);
+        if (cancelled) return;
+
+        let companiesList = data ?? [];
+
+        // Revenue Growth 정렬 시 company_metrics에서 데이터 가져오기
+        if (sortBy === 'revenue_growth' && companiesList.length > 0) {
+          const companyIds = companiesList.map((c) => c.id);
+          const { data: metricsData } = await supabase
+            .from('company_metrics')
+            .select('company_id, month, revenue')
+            .eq('source', 'stripe')
+            .not('revenue', 'is', null)
+            .in('company_id', companyIds)
+            .order('month', { ascending: false });
+
+          if (!cancelled && metricsData) {
+            const growthMap: Record<string, number> = {};
+            // 각 회사별 최근 2개월 revenue 추출
+            const companyMonths: Record<string, { month: string; revenue: number }[]> = {};
+            for (const m of metricsData) {
+              if (!companyMonths[m.company_id]) companyMonths[m.company_id] = [];
+              if (companyMonths[m.company_id].length < 2) {
+                companyMonths[m.company_id].push({ month: m.month, revenue: m.revenue! });
+              }
+            }
+
+            for (const [companyId, months] of Object.entries(companyMonths)) {
+              if (months.length >= 2) {
+                const recent = months[0].revenue;
+                const previous = months[1].revenue;
+                if (previous > 0) {
+                  growthMap[companyId] = ((recent - previous) / previous) * 100;
+                } else {
+                  growthMap[companyId] = recent > 0 ? 100 : 0;
+                }
+              }
+            }
+
+            setRevenueGrowthMap(growthMap);
+
+            // Revenue growth 기준 정렬 (값 있는 회사 우선, 높은 순)
+            companiesList = [...companiesList].sort((a, b) => {
+              const growthA = growthMap[a.id] ?? -Infinity;
+              const growthB = growthMap[b.id] ?? -Infinity;
+              return growthB - growthA;
+            });
+          }
+        }
+
+        // 핀된 회사를 최상단에 배치
+        const now = new Date().toISOString();
+        companiesList = [...companiesList].sort((a, b) => {
+          const aPinned = a.pinned_until && a.pinned_until > now ? 1 : 0;
+          const bPinned = b.pinned_until && b.pinned_until > now ? 1 : 0;
+          return bPinned - aPinned;
+        });
+
+        setCompanies(companiesList);
       } catch {
         if (!cancelled) setCompanies([]);
       } finally {
@@ -74,7 +144,7 @@ export function CompanyList() {
 
     fetchCompanies();
     return () => { cancelled = true; };
-  }, [category, stage]);
+  }, [category, stage, sortBy]);
 
   const toggleSaveCompany = (companyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,6 +157,10 @@ export function CompanyList() {
       }
       return newSet;
     });
+  };
+
+  const isPinned = (company: Company) => {
+    return company.pinned_until && company.pinned_until > new Date().toISOString();
   };
 
   const filteredCompanies = companies.filter((company) => {
@@ -106,7 +180,7 @@ export function CompanyList() {
   // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, category, stage, showSavedOnly]);
+  }, [searchTerm, category, stage, showSavedOnly, sortBy]);
 
   async function handleView(companyId: string) {
     if (user) {
@@ -156,6 +230,12 @@ export function CompanyList() {
             value={stage}
             onChange={(e) => setStage(e.target.value)}
             className="h-11 min-w-[130px] bg-secondary/50 border-border rounded-lg flex-shrink-0"
+          />
+          <Select
+            options={sortOptions}
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="h-11 min-w-[160px] bg-secondary/50 border-border rounded-lg flex-shrink-0"
           />
         </div>
 
@@ -208,6 +288,12 @@ export function CompanyList() {
                   <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
                     {company.name}
                   </h3>
+                  {isPinned(company) && (
+                    <Badge variant="secondary" className="text-xs gap-1 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                      <Star className="w-3 h-3" />
+                      Featured
+                    </Badge>
+                  )}
                   {company.location && (
                     <span className="text-muted-foreground text-sm">
                       {company.location}
@@ -235,6 +321,14 @@ export function CompanyList() {
                   {company.stage && (
                     <Badge variant="outline" className="text-xs font-medium uppercase bg-transparent">
                       {company.stage}
+                    </Badge>
+                  )}
+                  {sortBy === 'revenue_growth' && revenueGrowthMap[company.id] !== undefined && (
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-medium ${revenueGrowthMap[company.id] >= 0 ? 'text-green-400 border-green-500/30' : 'text-red-400 border-red-500/30'}`}
+                    >
+                      {revenueGrowthMap[company.id] >= 0 ? '+' : ''}{revenueGrowthMap[company.id].toFixed(1)}% MRR
                     </Badge>
                   )}
                 </div>

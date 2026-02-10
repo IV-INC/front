@@ -581,6 +581,8 @@ export function CompanyRegister() {
           revenue: m.revenue,
           mau: m.mau,
           retention: m.retention,
+          sessions: (m as Record<string, unknown>).sessions as number | null ?? null,
+          conversions: (m as Record<string, unknown>).conversions as number | null ?? null,
           source: m.source,
         }));
         for (const metric of dbMetrics) {

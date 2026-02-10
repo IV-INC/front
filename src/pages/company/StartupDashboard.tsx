@@ -481,6 +481,8 @@ export function StartupDashboard() {
           {(() => {
             const stripeMetrics = metrics.filter((m) => m.source === 'stripe' && m.revenue != null);
             const ga4Metrics = metrics.filter((m) => m.source === 'ga4' && m.mau != null);
+            const sessionsMetrics = metrics.filter((m) => m.source === 'ga4' && m.sessions != null);
+            const conversionsMetrics = metrics.filter((m) => m.source === 'ga4' && m.conversions != null);
             const hasCharts = stripeMetrics.length > 0 || ga4Metrics.length > 0;
 
             if (!hasCharts) {
@@ -524,6 +526,8 @@ export function StartupDashboard() {
 
             const latestStripe = stripeMetrics[stripeMetrics.length - 1];
             const latestGA4 = ga4Metrics[ga4Metrics.length - 1];
+            const latestSessions = sessionsMetrics[sessionsMetrics.length - 1];
+            const latestConversions = conversionsMetrics[conversionsMetrics.length - 1];
 
             return (
               <div className="space-y-6">
@@ -560,6 +564,24 @@ export function StartupDashboard() {
                         <p className="text-xs text-muted-foreground">{ga4Metrics.length} months</p>
                       </div>
                     </>
+                  )}
+                  {latestSessions && (
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                      <p className="text-xs text-muted-foreground mb-0.5">Latest Sessions</p>
+                      <p className="font-semibold text-lg">{latestSessions.sessions!.toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">{latestSessions.month}</p>
+                    </div>
+                  )}
+                  {latestConversions && latestSessions && (
+                    <div className="p-3 rounded-lg bg-secondary/50 border border-border">
+                      <p className="text-xs text-muted-foreground mb-0.5">Conversion Rate</p>
+                      <p className="font-semibold text-lg">
+                        {latestSessions.sessions! > 0
+                          ? ((latestConversions.conversions! / latestSessions.sessions!) * 100).toFixed(2)
+                          : '0'}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">{latestConversions.month}</p>
+                    </div>
                   )}
                 </div>
 
@@ -625,34 +647,58 @@ export function StartupDashboard() {
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                          <XAxis
-                            dataKey="month"
-                            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                            axisLine={{ stroke: 'hsl(var(--border))' }}
-                            tickLine={false}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                            axisLine={false}
-                            tickLine={false}
-                            tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: 'hsl(var(--card))',
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                            }}
-                            formatter={(value) => [Number(value).toLocaleString(), 'MAU']}
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="mau"
-                            stroke="#F9AB00"
-                            strokeWidth={2}
-                            fill="url(#mauGrad)"
-                          />
+                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'MAU']} />
+                          <Area type="monotone" dataKey="mau" stroke="#F9AB00" strokeWidth={2} fill="url(#mauGrad)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Sessions Chart */}
+                {sessionsMetrics.length > 1 && (
+                  <div>
+                    <p className="text-sm font-medium mb-3">Sessions</p>
+                    <div className="h-52">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={sessionsMetrics.map((m) => ({ month: m.month, sessions: m.sessions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="sessionsGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#34A853" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#34A853" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'Sessions']} />
+                          <Area type="monotone" dataKey="sessions" stroke="#34A853" strokeWidth={2} fill="url(#sessionsGrad)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {/* Conversions Chart */}
+                {conversionsMetrics.length > 1 && (
+                  <div>
+                    <p className="text-sm font-medium mb-3">Conversions</p>
+                    <div className="h-52">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={conversionsMetrics.map((m) => ({ month: m.month, conversions: m.conversions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="conversionsGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#EA4335" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#EA4335" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                          <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                          <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'Conversions']} />
+                          <Area type="monotone" dataKey="conversions" stroke="#EA4335" strokeWidth={2} fill="url(#conversionsGrad)" />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>

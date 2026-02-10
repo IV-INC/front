@@ -49,11 +49,18 @@ export function Header() {
               ))}
             </nav>
 
-            <Link to="/login">
-              <button className="text-sm font-medium text-white border border-neutral-600 rounded-lg px-4 py-1.5 hover:bg-neutral-800 transition-colors">
-                Log in
-              </button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to="/register/company">
+                <button className="text-sm font-medium text-neutral-950 bg-white rounded-lg px-4 py-1.5 hover:bg-neutral-200 transition-colors">
+                  Apply
+                </button>
+              </Link>
+              <Link to="/login">
+                <button className="text-sm font-medium text-white border border-neutral-600 rounded-lg px-4 py-1.5 hover:bg-neutral-800 transition-colors">
+                  Log in
+                </button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
@@ -90,6 +97,12 @@ export function Header() {
                 Complete Setup
               </Link>
             )}
+            <Link
+              to="/register/company"
+              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Apply
+            </Link>
             <div className="flex items-center gap-3 ml-4">
               <span className="text-sm text-muted-foreground">{profile?.full_name || user.email}</span>
               <Button variant="ghost" size="sm" onClick={handleLogout}>

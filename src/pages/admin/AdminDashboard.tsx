@@ -19,6 +19,11 @@ import {
   EyeOff,
   AlertTriangle,
   X,
+  Pin,
+  ShieldBan,
+  Trash2,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import {
   LineChart,
@@ -38,6 +43,8 @@ import type {
   CompanyNews,
   CompanyVideo,
   CompanyMetric,
+  CompanyCategory,
+  CompanyStage,
   ApprovalStatus,
 } from '@/types/database';
 
@@ -79,6 +86,26 @@ export function AdminDashboard() {
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Pin dialog state
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinTargetId, setPinTargetId] = useState<string | null>(null);
+  const [pinDays, setPinDays] = useState(7);
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    short_description: '',
+    description: '',
+    category: '',
+    stage: '',
+    location: '',
+  });
 
   // Fetch all companies
   useEffect(() => {
@@ -155,7 +182,6 @@ export function AdminDashboard() {
       rejection_reason: null,
     }).eq('id', companyId);
 
-    // Write audit log
     if (user?.id) {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -198,7 +224,6 @@ export function AdminDashboard() {
       rejection_reason: rejectionReason.trim() || null,
     }).eq('id', rejectTargetId);
 
-    // Write audit log
     if (user?.id) {
       await supabase.from('audit_logs').insert({
         user_id: user.id,
@@ -223,6 +248,167 @@ export function AdminDashboard() {
     setActionLoading(false);
   };
 
+  // Pin company
+  const handlePinConfirm = async () => {
+    if (!pinTargetId) return;
+    setActionLoading(true);
+    const pinnedUntil = new Date(Date.now() + pinDays * 24 * 60 * 60 * 1000).toISOString();
+
+    await supabase.from('companies').update({ pinned_until: pinnedUntil }).eq('id', pinTargetId);
+
+    if (user?.id) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'pin_company',
+        target_type: 'company',
+        target_id: pinTargetId,
+        metadata: { pinned_until: pinnedUntil, days: pinDays },
+      });
+    }
+
+    setCompanies((prev) =>
+      prev.map((c) => c.id === pinTargetId ? { ...c, pinned_until: pinnedUntil } : c)
+    );
+    if (selectedCompany?.id === pinTargetId) {
+      setSelectedCompany((prev) => prev ? { ...prev, pinned_until: pinnedUntil } : prev);
+    }
+    setPinDialogOpen(false);
+    setPinTargetId(null);
+    setActionLoading(false);
+  };
+
+  // Unpin company
+  const handleUnpin = async (companyId: string) => {
+    setActionLoading(true);
+    await supabase.from('companies').update({ pinned_until: null }).eq('id', companyId);
+
+    setCompanies((prev) =>
+      prev.map((c) => c.id === companyId ? { ...c, pinned_until: null } : c)
+    );
+    if (selectedCompany?.id === companyId) {
+      setSelectedCompany((prev) => prev ? { ...prev, pinned_until: null } : prev);
+    }
+    setActionLoading(false);
+  };
+
+  // Block company
+  const handleBlock = async (companyId: string) => {
+    setActionLoading(true);
+    await supabase.from('companies').update({ is_blocked: true, is_visible: false }).eq('id', companyId);
+
+    if (user?.id) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'block_company',
+        target_type: 'company',
+        target_id: companyId,
+        metadata: { blocked_at: new Date().toISOString() },
+      });
+    }
+
+    setCompanies((prev) =>
+      prev.map((c) => c.id === companyId ? { ...c, is_blocked: true, is_visible: false } : c)
+    );
+    setSelectedCompany(null);
+    setActionLoading(false);
+  };
+
+  // Unblock company
+  const handleUnblock = async (companyId: string) => {
+    setActionLoading(true);
+    await supabase.from('companies').update({ is_blocked: false, is_visible: true }).eq('id', companyId);
+
+    setCompanies((prev) =>
+      prev.map((c) => c.id === companyId ? { ...c, is_blocked: false, is_visible: true } : c)
+    );
+    if (selectedCompany?.id === companyId) {
+      setSelectedCompany((prev) => prev ? { ...prev, is_blocked: false, is_visible: true } : prev);
+    }
+    setActionLoading(false);
+  };
+
+  // Delete company
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    setActionLoading(true);
+
+    // Delete related data
+    await Promise.all([
+      supabase.from('executives').delete().eq('company_id', deleteTargetId),
+      supabase.from('company_videos').delete().eq('company_id', deleteTargetId),
+      supabase.from('company_qna').delete().eq('company_id', deleteTargetId),
+      supabase.from('company_news').delete().eq('company_id', deleteTargetId),
+      supabase.from('company_metrics').delete().eq('company_id', deleteTargetId),
+      supabase.from('view_logs').delete().eq('company_id', deleteTargetId),
+    ]);
+
+    await supabase.from('companies').delete().eq('id', deleteTargetId);
+
+    if (user?.id) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'delete_company',
+        target_type: 'company',
+        target_id: deleteTargetId,
+        metadata: { deleted_at: new Date().toISOString() },
+      });
+    }
+
+    setCompanies((prev) => prev.filter((c) => c.id !== deleteTargetId));
+    setSelectedCompany(null);
+    setDeleteDialogOpen(false);
+    setDeleteTargetId(null);
+    setActionLoading(false);
+  };
+
+  // Open edit dialog
+  const openEditDialog = (company: CompanyWithDetails) => {
+    setEditForm({
+      name: company.name,
+      short_description: company.short_description,
+      description: company.description,
+      category: company.category,
+      stage: company.stage,
+      location: company.location,
+    });
+    setEditDialogOpen(true);
+  };
+
+  // Save edit
+  const handleEditSave = async () => {
+    if (!selectedCompany) return;
+    setActionLoading(true);
+
+    const updatePayload = {
+      name: editForm.name,
+      short_description: editForm.short_description,
+      description: editForm.description,
+      category: editForm.category as CompanyCategory,
+      stage: editForm.stage as CompanyStage,
+      location: editForm.location,
+    };
+
+    await supabase.from('companies').update(updatePayload).eq('id', selectedCompany.id);
+
+    if (user?.id) {
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action: 'edit_company',
+        target_type: 'company',
+        target_id: selectedCompany.id,
+        metadata: { edited_fields: Object.keys(editForm) },
+      });
+    }
+
+    const updated = { ...selectedCompany, ...updatePayload };
+    setSelectedCompany(updated);
+    setCompanies((prev) =>
+      prev.map((c) => c.id === selectedCompany.id ? { ...c, ...updatePayload } : c)
+    );
+    setEditDialogOpen(false);
+    setActionLoading(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#171717' }}>
@@ -244,7 +430,6 @@ export function AdminDashboard() {
         </div>
 
         {selectedCompany ? (
-          /* Detail View */
           <CompanyDetailView
             company={selectedCompany}
             loading={detailLoading}
@@ -252,9 +437,14 @@ export function AdminDashboard() {
             onBack={() => setSelectedCompany(null)}
             onAccept={handleAccept}
             onReject={openRejectDialog}
+            onPin={(id) => { setPinTargetId(id); setPinDays(7); setPinDialogOpen(true); }}
+            onUnpin={handleUnpin}
+            onBlock={handleBlock}
+            onUnblock={handleUnblock}
+            onDelete={(id) => { setDeleteTargetId(id); setDeleteDialogOpen(true); }}
+            onEdit={openEditDialog}
           />
         ) : (
-          /* List View */
           <>
             {/* Tabs */}
             <div className="flex gap-2 mb-6 flex-wrap">
@@ -272,9 +462,7 @@ export function AdminDashboard() {
                   {label}
                   <span
                     className="ml-1 px-1.5 py-0.5 rounded text-xs"
-                    style={{
-                      background: activeTab === key ? 'rgba(255,255,255,0.2)' : '#404040',
-                    }}
+                    style={{ background: activeTab === key ? 'rgba(255,255,255,0.2)' : '#404040' }}
                   >
                     {tabCounts[key]}
                   </span>
@@ -291,11 +479,7 @@ export function AdminDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
-                style={{
-                  background: '#262626',
-                  border: '1px solid #404040',
-                  color: '#e5e5e5',
-                }}
+                style={{ background: '#262626', border: '1px solid #404040', color: '#e5e5e5' }}
               />
             </div>
 
@@ -315,68 +499,189 @@ export function AdminDashboard() {
         )}
       </div>
 
-      {/* Rejection Reason Dialog */}
+      {/* Rejection Dialog */}
       {rejectDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div
-            className="w-full max-w-md rounded-xl p-6 space-y-4"
-            style={{ background: '#262626', border: '1px solid #404040' }}
-          >
+        <DialogOverlay>
+          <div className="w-full max-w-md rounded-xl p-6 space-y-4" style={{ background: '#262626', border: '1px solid #404040' }}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-400" />
                 Reject Company
               </h3>
-              <button
-                onClick={() => { setRejectDialogOpen(false); setRejectTargetId(null); }}
-                className="text-neutral-400 hover:text-white transition-colors"
-              >
+              <button onClick={() => { setRejectDialogOpen(false); setRejectTargetId(null); }} className="text-neutral-400 hover:text-white">
                 <X className="h-5 w-5" />
               </button>
             </div>
-
-            <p className="text-sm text-neutral-400">
-              Please provide a reason for rejection. This will be visible to the company.
-            </p>
-
+            <p className="text-sm text-neutral-400">Please provide a reason for rejection.</p>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Enter rejection reason (optional)..."
               rows={4}
               className="w-full rounded-lg p-3 text-sm outline-none resize-none"
-              style={{
-                background: '#1a1a1a',
-                border: '1px solid #404040',
-                color: '#e5e5e5',
-              }}
+              style={{ background: '#1a1a1a', border: '1px solid #404040', color: '#e5e5e5' }}
             />
-
             <div className="flex justify-end gap-2">
-              <button
-                onClick={() => { setRejectDialogOpen(false); setRejectTargetId(null); }}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: '#404040', color: '#e5e5e5' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRejectConfirm}
-                disabled={actionLoading}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: '#dc2626', color: '#fff' }}
-              >
-                {actionLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
-                )}
+              <DarkButton onClick={() => { setRejectDialogOpen(false); setRejectTargetId(null); }}>Cancel</DarkButton>
+              <DarkButton bg="#dc2626" onClick={handleRejectConfirm} disabled={actionLoading}>
+                {actionLoading ? <Spinner /> : <XCircle className="h-4 w-4" />}
                 Reject
-              </button>
+              </DarkButton>
             </div>
           </div>
-        </div>
+        </DialogOverlay>
       )}
+
+      {/* Pin Dialog */}
+      {pinDialogOpen && (
+        <DialogOverlay>
+          <div className="w-full max-w-sm rounded-xl p-6 space-y-4" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Pin className="h-5 w-5 text-yellow-400" />
+              Pin to Top
+            </h3>
+            <p className="text-sm text-neutral-400">How many days should this company be pinned?</p>
+            <div className="flex items-center gap-3">
+              {[3, 7, 14, 30].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setPinDays(d)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: pinDays === d ? '#3b82f6' : '#404040', color: pinDays === d ? '#fff' : '#a3a3a3' }}
+                >
+                  {d} days
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <DarkButton onClick={() => { setPinDialogOpen(false); setPinTargetId(null); }}>Cancel</DarkButton>
+              <DarkButton bg="#eab308" color="#000" onClick={handlePinConfirm} disabled={actionLoading}>
+                {actionLoading ? <Spinner /> : <Pin className="h-4 w-4" />}
+                Pin
+              </DarkButton>
+            </div>
+          </div>
+        </DialogOverlay>
+      )}
+
+      {/* Delete Dialog */}
+      {deleteDialogOpen && (
+        <DialogOverlay>
+          <div className="w-full max-w-md rounded-xl p-6 space-y-4" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-400" />
+              Delete Company
+            </h3>
+            <p className="text-sm text-neutral-400">
+              This will permanently delete the company and all related data (team, videos, Q&A, news, metrics). This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <DarkButton onClick={() => { setDeleteDialogOpen(false); setDeleteTargetId(null); }}>Cancel</DarkButton>
+              <DarkButton bg="#dc2626" onClick={handleDeleteConfirm} disabled={actionLoading}>
+                {actionLoading ? <Spinner /> : <Trash2 className="h-4 w-4" />}
+                Delete
+              </DarkButton>
+            </div>
+          </div>
+        </DialogOverlay>
+      )}
+
+      {/* Edit Dialog */}
+      {editDialogOpen && selectedCompany && (
+        <DialogOverlay>
+          <div className="w-full max-w-lg rounded-xl p-6 space-y-4 max-h-[80vh] overflow-y-auto" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Pencil className="h-5 w-5" />
+                Edit Company Data
+              </h3>
+              <button onClick={() => setEditDialogOpen(false)} className="text-neutral-400 hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <EditField label="Name" value={editForm.name} onChange={(v) => setEditForm((f) => ({ ...f, name: v }))} />
+              <EditField label="Short Description" value={editForm.short_description} onChange={(v) => setEditForm((f) => ({ ...f, short_description: v }))} />
+              <div>
+                <label className="text-xs text-neutral-400 mb-1 block">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={4}
+                  className="w-full rounded-lg p-2.5 text-sm outline-none resize-none"
+                  style={{ background: '#1a1a1a', border: '1px solid #404040', color: '#e5e5e5' }}
+                />
+              </div>
+              <EditField label="Category" value={editForm.category} onChange={(v) => setEditForm((f) => ({ ...f, category: v }))} />
+              <EditField label="Stage" value={editForm.stage} onChange={(v) => setEditForm((f) => ({ ...f, stage: v }))} />
+              <EditField label="Location" value={editForm.location} onChange={(v) => setEditForm((f) => ({ ...f, location: v }))} />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <DarkButton onClick={() => setEditDialogOpen(false)}>Cancel</DarkButton>
+              <DarkButton bg="#3b82f6" onClick={handleEditSave} disabled={actionLoading}>
+                {actionLoading ? <Spinner /> : <Save className="h-4 w-4" />}
+                Save
+              </DarkButton>
+            </div>
+          </div>
+        </DialogOverlay>
+      )}
+    </div>
+  );
+}
+
+/* ─── Shared UI Components ─── */
+
+function DialogOverlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+      {children}
+    </div>
+  );
+}
+
+function Spinner() {
+  return <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />;
+}
+
+function DarkButton({
+  children,
+  onClick,
+  disabled,
+  bg = '#404040',
+  color = '#e5e5e5',
+}: {
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  bg?: string;
+  color?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+      style={{ background: bg, color }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function EditField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="text-xs text-neutral-400 mb-1 block">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg p-2.5 text-sm outline-none"
+        style={{ background: '#1a1a1a', border: '1px solid #404040', color: '#e5e5e5' }}
+      />
     </div>
   );
 }
@@ -384,29 +689,28 @@ export function AdminDashboard() {
 /* ─── Company Card ─── */
 function CompanyCard({ company, onClick }: { company: Company; onClick: () => void }) {
   const status = getTabStatus(company);
+  const isPinned = company.pinned_until && company.pinned_until > new Date().toISOString();
 
   return (
     <button
       onClick={onClick}
       className="text-left rounded-xl p-4 transition-colors hover:border-blue-500"
-      style={{
-        background: '#262626',
-        border: '1px solid #404040',
-      }}
+      style={{ background: '#262626', border: `1px solid ${isPinned ? '#eab308' : '#404040'}` }}
     >
       <div className="flex items-start gap-3">
         {company.logo_url ? (
           <img src={company.logo_url} alt={company.name} className="h-12 w-12 rounded-lg object-cover" />
         ) : (
-          <div
-            className="h-12 w-12 rounded-lg flex items-center justify-center text-lg font-bold"
-            style={{ background: '#404040', color: '#a3a3a3' }}
-          >
+          <div className="h-12 w-12 rounded-lg flex items-center justify-center text-lg font-bold" style={{ background: '#404040', color: '#a3a3a3' }}>
             {company.name[0]}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-white truncate">{company.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-white truncate">{company.name}</h3>
+            {isPinned && <Pin className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
+            {company.is_blocked && <ShieldBan className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />}
+          </div>
           <p className="text-sm text-neutral-400 truncate">{company.short_description}</p>
         </div>
       </div>
@@ -448,6 +752,12 @@ function CompanyDetailView({
   onBack,
   onAccept,
   onReject,
+  onPin,
+  onUnpin,
+  onBlock,
+  onUnblock,
+  onDelete,
+  onEdit,
 }: {
   company: CompanyWithDetails;
   loading: boolean;
@@ -455,48 +765,73 @@ function CompanyDetailView({
   onBack: () => void;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onPin: (id: string) => void;
+  onUnpin: (id: string) => void;
+  onBlock: (id: string) => void;
+  onUnblock: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (company: CompanyWithDetails) => void;
 }) {
   const currentStatus = getTabStatus(company);
   const mainVideo = company.videos?.find((v) => v.is_main);
+  const isPinned = company.pinned_until && company.pinned_until > new Date().toISOString();
 
   return (
     <div className="space-y-6">
       {/* Back + Actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <button onClick={onBack} className="flex items-center gap-1 text-sm text-neutral-400 hover:text-white transition-colors">
           <ChevronLeft className="h-4 w-4" /> Back to List
         </button>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {/* Edit */}
+          <DarkButton bg="#404040" onClick={() => onEdit(company)}>
+            <Pencil className="h-4 w-4" /> Edit
+          </DarkButton>
+
+          {/* Pin / Unpin */}
+          {isPinned ? (
+            <DarkButton bg="#78716c" onClick={() => onUnpin(company.id)} disabled={actionLoading}>
+              <Pin className="h-4 w-4" /> Unpin
+            </DarkButton>
+          ) : (
+            <DarkButton bg="#eab308" color="#000" onClick={() => onPin(company.id)} disabled={actionLoading}>
+              <Pin className="h-4 w-4" /> Pin
+            </DarkButton>
+          )}
+
+          {/* Block / Unblock */}
+          {company.is_blocked ? (
+            <DarkButton bg="#059669" onClick={() => onUnblock(company.id)} disabled={actionLoading}>
+              <ShieldBan className="h-4 w-4" /> Unblock
+            </DarkButton>
+          ) : (
+            <DarkButton bg="#b91c1c" onClick={() => onBlock(company.id)} disabled={actionLoading}>
+              <ShieldBan className="h-4 w-4" /> Block
+            </DarkButton>
+          )}
+
+          {/* Approve / Reject */}
           {currentStatus !== 'approved' && currentStatus !== 'paid' && (
-            <button
-              onClick={() => onAccept(company.id)}
-              disabled={actionLoading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ background: '#16a34a', color: '#fff' }}
-            >
+            <DarkButton bg="#16a34a" onClick={() => onAccept(company.id)} disabled={actionLoading}>
               <CheckCircle className="h-4 w-4" /> Approve
-            </button>
+            </DarkButton>
           )}
           {currentStatus !== 'rejected' && (
-            <button
-              onClick={() => onReject(company.id)}
-              disabled={actionLoading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ background: '#dc2626', color: '#fff' }}
-            >
+            <DarkButton bg="#dc2626" onClick={() => onReject(company.id)} disabled={actionLoading}>
               <XCircle className="h-4 w-4" /> Reject
-            </button>
+            </DarkButton>
           )}
           {currentStatus === 'rejected' && (
-            <button
-              onClick={() => onAccept(company.id)}
-              disabled={actionLoading}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ background: '#16a34a', color: '#fff' }}
-            >
+            <DarkButton bg="#16a34a" onClick={() => onAccept(company.id)} disabled={actionLoading}>
               <CheckCircle className="h-4 w-4" /> Re-approve
-            </button>
+            </DarkButton>
           )}
+
+          {/* Delete */}
+          <DarkButton bg="#7f1d1d" onClick={() => onDelete(company.id)} disabled={actionLoading}>
+            <Trash2 className="h-4 w-4" /> Delete
+          </DarkButton>
         </div>
       </div>
 
@@ -506,12 +841,33 @@ function CompanyDetailView({
         </div>
       ) : (
         <>
+          {/* Pin Notice */}
+          {isPinned && (
+            <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#422006', border: '1px solid #854d0e' }}>
+              <Pin className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-300">Pinned to Top</p>
+                <p className="text-xs text-yellow-400 mt-1">
+                  Until {new Date(company.pinned_until!).toLocaleDateString('ko-KR')}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Blocked Notice */}
+          {company.is_blocked && (
+            <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#450a0a', border: '1px solid #7f1d1d' }}>
+              <ShieldBan className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-300">Blocked</p>
+                <p className="text-xs text-red-400 mt-1">This company is blocked and hidden from investors.</p>
+              </div>
+            </div>
+          )}
+
           {/* Rejection Notice */}
           {currentStatus === 'rejected' && company.rejection_reason && (
-            <div
-              className="flex items-start gap-3 p-4 rounded-xl"
-              style={{ background: '#450a0a', border: '1px solid #7f1d1d' }}
-            >
+            <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#450a0a', border: '1px solid #7f1d1d' }}>
               <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-red-300">Rejection Reason</p>
@@ -527,10 +883,7 @@ function CompanyDetailView({
 
           {/* Approval info */}
           {(currentStatus === 'approved' || currentStatus === 'paid') && company.reviewed_at && (
-            <div
-              className="flex items-start gap-3 p-4 rounded-xl"
-              style={{ background: '#052e16', border: '1px solid #166534' }}
-            >
+            <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#052e16', border: '1px solid #166534' }}>
               <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-green-300">Approved</p>
@@ -547,10 +900,7 @@ function CompanyDetailView({
               {company.logo_url ? (
                 <img src={company.logo_url} alt={company.name} className="h-16 w-16 rounded-xl object-cover" />
               ) : (
-                <div
-                  className="h-16 w-16 rounded-xl flex items-center justify-center text-2xl font-bold"
-                  style={{ background: '#404040', color: '#a3a3a3' }}
-                >
+                <div className="h-16 w-16 rounded-xl flex items-center justify-center text-2xl font-bold" style={{ background: '#404040', color: '#a3a3a3' }}>
                   {company.name[0]}
                 </div>
               )}
@@ -558,19 +908,12 @@ function CompanyDetailView({
                 <h2 className="text-xl font-bold text-white">{company.name}</h2>
                 <p className="text-neutral-400 mt-1">{company.short_description}</p>
                 <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="text-xs px-2 py-1 rounded" style={{ background: '#1e3a5f', color: '#60a5fa' }}>
-                    {company.category}
-                  </span>
-                  <span className="text-xs px-2 py-1 rounded" style={{ background: '#3b2f1e', color: '#fbbf24' }}>
-                    {company.stage}
-                  </span>
-                  <span
-                    className="text-xs px-2 py-1 rounded"
-                    style={{
-                      background: currentStatus === 'paid' ? '#052e16' : currentStatus === 'approved' ? '#0c4a6e' : currentStatus === 'rejected' ? '#450a0a' : '#422006',
-                      color: currentStatus === 'paid' ? '#4ade80' : currentStatus === 'approved' ? '#38bdf8' : currentStatus === 'rejected' ? '#f87171' : '#fbbf24',
-                    }}
-                  >
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: '#1e3a5f', color: '#60a5fa' }}>{company.category}</span>
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: '#3b2f1e', color: '#fbbf24' }}>{company.stage}</span>
+                  <span className="text-xs px-2 py-1 rounded" style={{
+                    background: currentStatus === 'paid' ? '#052e16' : currentStatus === 'approved' ? '#0c4a6e' : currentStatus === 'rejected' ? '#450a0a' : '#422006',
+                    color: currentStatus === 'paid' ? '#4ade80' : currentStatus === 'approved' ? '#38bdf8' : currentStatus === 'rejected' ? '#f87171' : '#fbbf24',
+                  }}>
                     {currentStatus.toUpperCase()}
                   </span>
                 </div>
@@ -581,7 +924,6 @@ function CompanyDetailView({
               <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {company.employee_count} employees</span>
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {company.location}</span>
             </div>
-            {/* External Links */}
             <div className="flex flex-wrap gap-2 mt-4">
               {company.website_url && (
                 <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
@@ -654,9 +996,11 @@ function CompanyDetailView({
                 <BarChart3 className="h-5 w-5" /> Business Metrics
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DarkMetricChart title="Monthly Revenue" data={company.metrics} dataKey="revenue" color="#6366f1" format={(v) => `₩${(v / 1_000_000).toFixed(0)}M`} />
+                <DarkMetricChart title="Monthly Revenue" data={company.metrics} dataKey="revenue" color="#6366f1" format={(v) => `$${(v / 1000).toFixed(0)}k`} />
                 <DarkMetricChart title="MAU" data={company.metrics} dataKey="mau" color="#10b981" format={(v) => v.toLocaleString()} />
                 <DarkMetricChart title="Retention" data={company.metrics} dataKey="retention" color="#f59e0b" format={(v) => `${v}%`} />
+                <DarkMetricChart title="Sessions" data={company.metrics} dataKey="sessions" color="#34a853" format={(v) => v.toLocaleString()} />
+                <DarkMetricChart title="Conversions" data={company.metrics} dataKey="conversions" color="#ea4335" format={(v) => v.toLocaleString()} />
               </div>
             </div>
           )}
@@ -724,7 +1068,7 @@ function DarkMetricChart({
 }: {
   title: string;
   data: CompanyMetric[];
-  dataKey: 'revenue' | 'mau' | 'retention';
+  dataKey: 'revenue' | 'mau' | 'retention' | 'sessions' | 'conversions';
   color: string;
   format: (v: number) => string;
 }) {

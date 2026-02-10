@@ -21,6 +21,8 @@ interface MetricRow {
   revenue: number | null;
   mau: number | null;
   retention: number | null;
+  sessions: number | null;
+  conversions: number | null;
   source: 'stripe' | 'ga4';
 }
 
@@ -208,19 +210,32 @@ async function syncStripeMetrics(
   }
 
   const accessToken = tokenData.access_token;
-  const now = new Date();
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-  const txRes = await fetch(
-    `https://api.stripe.com/v1/balance_transactions?created[gte]=${Math.floor(sixMonthsAgo.getTime() / 1000)}&limit=100&type=charge`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  // 전체 기간 데이터: 페이지네이션으로 모든 charge 트랜잭션 수집
+  let allTransactions: Array<{ created: number; amount: number }> = [];
+  let hasMore = true;
+  let startingAfter: string | null = null;
 
-  const txData = await txRes.json();
-  if (!txRes.ok) throw new Error('Failed to fetch Stripe transactions');
+  while (hasMore) {
+    const params = new URLSearchParams({ limit: '100', type: 'charge' });
+    if (startingAfter) params.set('starting_after', startingAfter);
+
+    const txRes = await fetch(
+      `https://api.stripe.com/v1/balance_transactions?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+
+    const txData = await txRes.json();
+    if (!txRes.ok) throw new Error('Failed to fetch Stripe transactions');
+
+    const batch = txData.data || [];
+    allTransactions = allTransactions.concat(batch);
+    hasMore = txData.has_more && batch.length > 0;
+    if (batch.length > 0) startingAfter = batch[batch.length - 1].id;
+  }
 
   const monthlyRevenue: Record<string, number> = {};
-  for (const tx of txData.data || []) {
+  for (const tx of allTransactions) {
     const date = new Date(tx.created * 1000);
     const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (tx.amount / 100);
@@ -232,6 +247,8 @@ async function syncStripeMetrics(
     revenue,
     mau: null,
     retention: null,
+    sessions: null,
+    conversions: null,
     source: 'stripe' as const,
   }));
 }
@@ -331,9 +348,7 @@ async function syncGA4Metrics(
     }
   }
 
-  const now = new Date();
-  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-
+  // 전체 기간 데이터: 2015-01-01부터 현재까지
   const reportRes = await fetch(
     `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
     {
@@ -344,14 +359,14 @@ async function syncGA4Metrics(
       },
       body: JSON.stringify({
         dateRanges: [{
-          startDate: `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`,
+          startDate: '2015-01-01',
           endDate: 'today',
         }],
         dimensions: [{ name: 'yearMonth' }],
         metrics: [
           { name: 'activeUsers' },
-          { name: 'screenPageViews' },
-          { name: 'averageSessionDuration' },
+          { name: 'sessions' },
+          { name: 'conversions' },
         ],
       }),
     }
@@ -373,6 +388,8 @@ async function syncGA4Metrics(
     if (!yearMonth) continue;
     const month = `${yearMonth.slice(0, 4)}-${yearMonth.slice(4, 6)}`;
     const mau = parseInt(row.metricValues?.[0]?.value || '0', 10);
+    const sessions = parseInt(row.metricValues?.[1]?.value || '0', 10);
+    const conversions = parseInt(row.metricValues?.[2]?.value || '0', 10);
 
     metrics.push({
       company_id: companyId,
@@ -380,6 +397,8 @@ async function syncGA4Metrics(
       revenue: null,
       mau,
       retention: null,
+      sessions,
+      conversions,
       source: 'ga4' as const,
     });
   }
