@@ -64,7 +64,8 @@
       "Bash(python3:*)",
       "Bash(npx vercel:*)",
       "Bash(SERVICE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzd2x1bHZ5eG9lbHJ3ZXNwcGhtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODg2MjA2MSwiZXhwIjoyMDg0NDM4MDYxfQ.w3BBbrGE_76A3tvh_aoIalRKAzIElVsS0Kp1Wxr1AQY\":*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npm view:*)"
     ]
   }
 }
