@@ -17,7 +17,6 @@ const teamMembers = [
   {
     name: 'Sarah Chen',
     role: 'CEO',
-    photo: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
     school: 'Stanford University',
     major: 'Computer Science',
     bio: 'Former Product Lead at Google, 8 years in AI/ML',
@@ -25,7 +24,6 @@ const teamMembers = [
   {
     name: 'Michael Park',
     role: 'CTO',
-    photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face',
     school: 'MIT',
     major: 'Electrical Engineering',
     bio: 'Ex-Amazon Principal Engineer, distributed systems expert',
@@ -33,7 +31,6 @@ const teamMembers = [
   {
     name: 'Emily Johnson',
     role: 'CFO',
-    photo: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=face',
     school: 'Wharton School',
     major: 'Finance & Economics',
     bio: 'Former VP at Goldman Sachs, 12 years in fintech',
@@ -316,12 +313,8 @@ export function Home() {
             {teamMembers.map((member) => (
               <div key={member.name} className="bg-neutral-900 border border-neutral-800 rounded-xl p-6">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {member.photo ? (
-                      <img src={member.photo} alt={member.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <img src="/people.svg" alt="person" className="w-7 h-7 invert opacity-60" />
-                    )}
+                  <div className="w-12 h-12 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0">
+                    <img src="/people.svg" alt="person" className="w-7 h-7 invert opacity-60" />
                   </div>
                   <div>
                     <span className="text-xs text-neutral-500 uppercase tracking-wider">{member.role}</span>
