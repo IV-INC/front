@@ -487,16 +487,13 @@ export function Home() {
       <footer className="border-t border-neutral-800 py-8">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <img src="/logo.png" alt="IV" className="h-8 w-auto" />
-              <p className="text-xs text-neutral-500">
-                IV is not an investment platform and does not provide investment advice.
-              </p>
-            </div>
+            <p className="text-xs text-neutral-500">
+              IV is not an investment platform and does not provide investment advice.
+            </p>
             <div className="flex items-center gap-4 text-xs text-neutral-500">
+              <a href="#hero" className="hover:text-white transition-colors">About</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms</a>
               <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
-              <a href="/policies" className="hover:text-white transition-colors">Policies</a>
               <a href="mailto:contact@ivholdings.com" className="hover:text-white transition-colors">Contact</a>
               <a href="https://instagram.com/IVinsights" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
                 <Instagram className="w-4 h-4" />

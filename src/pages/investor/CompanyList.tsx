@@ -5,8 +5,9 @@ import {
   Search,
   Bookmark,
   BookmarkCheck,
-  Filter,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
@@ -44,6 +45,8 @@ export function CompanyList() {
   const [stage, setStage] = useState('');
   const [savedCompanies, setSavedCompanies] = useState<Set<string>>(new Set());
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +97,17 @@ export function CompanyList() {
     return matchesSearch && matchesSaved;
   });
 
+  const totalPages = Math.ceil(filteredCompanies.length / PAGE_SIZE);
+  const paginatedCompanies = filteredCompanies.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // 필터 변경 시 페이지 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, category, stage, showSavedOnly]);
+
   async function handleView(companyId: string) {
     if (user) {
       await supabase.from('view_logs').insert({
@@ -109,9 +123,6 @@ export function CompanyList() {
       {/* Header */}
       <div className="mb-8 space-y-4">
         <h1 className="text-3xl font-serif">Discover Startups</h1>
-        <p className="text-muted-foreground text-sm">
-          Browse companies with real-time Stripe & GA4 metrics
-        </p>
 
         {/* Search and Filters */}
         <div className="flex items-center gap-3">
@@ -134,20 +145,17 @@ export function CompanyList() {
             <BookmarkCheck className="w-4 h-4" />
             Saved ({savedCompanies.size})
           </Button>
-          <div className="flex items-center gap-2 h-11 px-3 rounded-lg border bg-secondary/50 border-border flex-shrink-0">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <Select
-              options={categoryOptions}
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="border-0 bg-transparent h-9 min-w-[120px] shadow-none focus:ring-0"
-            />
-          </div>
+          <Select
+            options={categoryOptions}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-11 min-w-[160px] bg-secondary/50 border-border rounded-lg flex-shrink-0"
+          />
           <Select
             options={stageOptions}
             value={stage}
             onChange={(e) => setStage(e.target.value)}
-            className="h-11 w-[130px] bg-secondary/50 border-border rounded-lg flex-shrink-0"
+            className="h-11 min-w-[130px] bg-secondary/50 border-border rounded-lg flex-shrink-0"
           />
         </div>
 
@@ -169,7 +177,7 @@ export function CompanyList() {
         </div>
       ) : (
         <div className="flex flex-col divide-y divide-border border border-border rounded-lg bg-card">
-          {filteredCompanies.map((company) => (
+          {paginatedCompanies.map((company) => (
             <div
               key={company.id}
               className="flex items-start gap-5 p-5 hover:bg-secondary/50 transition-colors cursor-pointer group border-l-4 border-l-transparent hover:border-l-primary"
@@ -245,6 +253,35 @@ export function CompanyList() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+            className="gap-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground px-3">
+            {currentPage} / {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => p + 1)}
+            className="gap-1"
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       )}
     </main>
