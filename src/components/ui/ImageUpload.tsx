@@ -40,7 +40,7 @@ export function ImageUpload({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const withTimeout = <T,>(promise: Promise<T>, ms = 30000): Promise<T> =>
+  const withTimeout = <T,>(promise: Promise<T>, ms = 60000): Promise<T> =>
     Promise.race([
       promise,
       new Promise<never>((_, reject) =>
