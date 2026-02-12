@@ -96,6 +96,7 @@ export function CompanyEdit() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
   // Deck state
   const [companyDeck, setCompanyDeck] = useState<{ name: string; url: string } | null>(null);
@@ -116,12 +117,36 @@ export function CompanyEdit() {
   // Integration disconnect state
   const [disconnectLoading, setDisconnectLoading] = useState<'stripe' | 'ga4' | null>(null);
 
-  // 타임아웃 래퍼 (Supabase 콜드 스타트 대비 60초)
-  const withTimeout = <T,>(promise: PromiseLike<T> | Promise<T>, ms = 60000): Promise<T> =>
-    Promise.race([
-      Promise.resolve(promise),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms)),
-    ]);
+  // 재시도 + 타임아웃 래퍼
+  const withRetry = async <T,>(
+    fn: () => PromiseLike<T> | Promise<T>,
+    { retries = 2, timeoutMs = 20000, label = '' } = {},
+  ): Promise<T> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await Promise.race([
+          Promise.resolve(fn()),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), timeoutMs),
+          ),
+        ]);
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'timeout';
+        if (attempt < retries) {
+          const delay = 2000 * (attempt + 1);
+          setSubmitStatus(`${label} retrying... (${attempt + 1}/${retries})`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(
+          isTimeout
+            ? `${label || 'Request'} timed out after ${retries + 1} attempts. Please check your network and try again.`
+            : err instanceof Error ? err.message : 'An unexpected error occurred.',
+        );
+      }
+    }
+    throw new Error('Unreachable');
+  };
 
   const {
     register,
@@ -407,6 +432,7 @@ export function CompanyEdit() {
     setManualSubmitting(true);
     setValidationErrors([]);
     setSubmitError(null);
+    setSubmitStatus(null);
 
     try {
       const values = getValues();
@@ -443,21 +469,27 @@ export function CompanyEdit() {
         return;
       }
 
-      // Ensure session is valid (server-side validation)
-      const { data: { user: validatedUser }, error: userError } = await withTimeout(
-        supabase.auth.getUser()
+      // 1. 세션 검증
+      setSubmitStatus('Verifying session...');
+      const { data: { user: validatedUser }, error: userError } = await withRetry(
+        () => supabase.auth.getUser(),
+        { label: 'Session verification' },
       );
       if (userError || !validatedUser) {
-        const { data: refreshData } = await withTimeout(supabase.auth.refreshSession());
+        const { data: refreshData } = await withRetry(
+          () => supabase.auth.refreshSession(),
+          { label: 'Session refresh' },
+        );
         if (!refreshData.session) {
           setSubmitError('Session expired. Please log in again.');
           return;
         }
       }
 
-      // 1. Update company
-      const { error: companyError } = await withTimeout(
-        supabase
+      // 2. 회사 정보 업데이트
+      setSubmitStatus('Updating company info...');
+      const { error: companyError } = await withRetry(
+        () => supabase
           .from('companies')
           .update({
             name: data.name,
@@ -476,7 +508,8 @@ export function CompanyEdit() {
             youtube_url: data.youtube_url || null,
             deck_url: companyDeck?.url || null,
           })
-          .eq('id', company.id)
+          .eq('id', company.id),
+        { label: 'Company update' },
       );
 
       if (companyError) {
@@ -484,9 +517,11 @@ export function CompanyEdit() {
         return;
       }
 
-      // 2. Delete-then-insert executives
-      const { error: deleteExecError } = await withTimeout(
-        supabase.from('executives').delete().eq('company_id', company.id)
+      // 3. 팀 업데이트 (Delete-then-insert)
+      setSubmitStatus('Updating leadership team...');
+      const { error: deleteExecError } = await withRetry(
+        () => supabase.from('executives').delete().eq('company_id', company.id),
+        { label: 'Team cleanup' },
       );
 
       if (deleteExecError) {
@@ -495,16 +530,21 @@ export function CompanyEdit() {
       }
 
       // Verify deletion actually worked (RLS may silently block it)
-      const { data: remaining } = await withTimeout(
-        supabase.from('executives').select('id').eq('company_id', company.id)
+      const { data: remaining } = await withRetry(
+        () => supabase.from('executives').select('id').eq('company_id', company.id),
+        { retries: 0, label: 'Verify deletion' },
       );
 
       if (remaining && remaining.length > 0) {
         for (const row of remaining) {
-          await withTimeout(supabase.from('executives').delete().eq('id', row.id));
+          await withRetry(
+            () => supabase.from('executives').delete().eq('id', row.id),
+            { retries: 0, label: 'Delete executive' },
+          );
         }
-        const { data: stillRemaining } = await withTimeout(
-          supabase.from('executives').select('id').eq('company_id', company.id)
+        const { data: stillRemaining } = await withRetry(
+          () => supabase.from('executives').select('id').eq('company_id', company.id),
+          { retries: 0 },
         );
         if (stillRemaining && stillRemaining.length > 0) {
           setSubmitError('Unable to update leadership team. Please check database permissions (RLS DELETE policy on executives table).');
@@ -523,36 +563,42 @@ export function CompanyEdit() {
         education: exec.education || null,
       }));
 
-      const { error: insertExecError } = await withTimeout(
-        supabase.from('executives').insert(executives)
+      const { error: insertExecError } = await withRetry(
+        () => supabase.from('executives').insert(executives),
+        { label: 'Team registration' },
       );
       if (insertExecError) {
         setSubmitError(`Failed to insert executives: ${insertExecError.message}`);
         return;
       }
 
-      // 3. Delete-then-insert main video
-      try {
-        await withTimeout(
-          supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true)
-        );
+      // 4. 부가 데이터 저장 (실패해도 무시)
+      setSubmitStatus('Saving additional data...');
 
+      // Delete-then-insert main video
+      try {
+        await withRetry(
+          () => supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true),
+          { retries: 1, label: 'Video cleanup' },
+        );
         if (data.intro_video_url) {
-          await withTimeout(
-            supabase.from('company_videos').insert({
+          await withRetry(
+            () => supabase.from('company_videos').insert({
               company_id: company.id,
               video_url: data.intro_video_url,
               description: 'Company Introduction',
               is_main: true,
-            })
+            }),
+            { retries: 1, label: 'Video' },
           );
         }
       } catch { /* table may not exist yet */ }
 
-      // 4. Delete-then-insert Q&A
+      // Delete-then-insert Q&A
       try {
-        await withTimeout(
-          supabase.from('company_qna').delete().eq('company_id', company.id)
+        await withRetry(
+          () => supabase.from('company_qna').delete().eq('company_id', company.id),
+          { retries: 1, label: 'Q&A cleanup' },
         );
 
         const qnaRows = selectedQuestions
@@ -565,13 +611,14 @@ export function CompanyEdit() {
           }));
 
         if (qnaRows.length > 0) {
-          await withTimeout(
-            supabase.from('company_qna').insert(qnaRows)
+          await withRetry(
+            () => supabase.from('company_qna').insert(qnaRows),
+            { retries: 1, label: 'Q&A' },
           );
         }
       } catch { /* table may not exist yet */ }
 
-      // 5. Insert new news items
+      // Insert new news items
       const validNewNews = newNewsItems.filter((n) => n.title.trim() && n.date);
       if (validNewNews.length > 0) {
         try {
@@ -583,7 +630,10 @@ export function CompanyEdit() {
             thumbnail_url: null,
             published_at: n.date,
           }));
-          await withTimeout(supabase.from('company_news').insert(newsRows));
+          await withRetry(
+            () => supabase.from('company_news').insert(newsRows),
+            { retries: 1, label: 'News' },
+          );
         } catch { /* table may not exist yet */ }
       }
 
@@ -592,6 +642,7 @@ export function CompanyEdit() {
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
       setManualSubmitting(false);
+      setSubmitStatus(null);
     }
   };
 

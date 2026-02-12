@@ -259,6 +259,7 @@ export function CompanyRegister() {
   };
 
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
   const {
     register,
@@ -394,12 +395,36 @@ export function CompanyRegister() {
     );
   };
 
-  // 타임아웃 래퍼 (Supabase 콜드 스타트 대비 60초)
-  const withTimeout = <T,>(promise: PromiseLike<T> | Promise<T>, ms = 60000): Promise<T> =>
-    Promise.race([
-      Promise.resolve(promise),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms)),
-    ]);
+  // 재시도 + 타임아웃 래퍼
+  const withRetry = async <T,>(
+    fn: () => PromiseLike<T> | Promise<T>,
+    { retries = 2, timeoutMs = 20000, label = '' } = {},
+  ): Promise<T> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await Promise.race([
+          Promise.resolve(fn()),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), timeoutMs),
+          ),
+        ]);
+      } catch (err) {
+        const isTimeout = err instanceof Error && err.message === 'timeout';
+        if (attempt < retries) {
+          const delay = 2000 * (attempt + 1);
+          setSubmitStatus(`${label} retrying... (${attempt + 1}/${retries})`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(
+          isTimeout
+            ? `${label || 'Request'} timed out after ${retries + 1} attempts. Please check your network and try again.`
+            : err instanceof Error ? err.message : 'An unexpected error occurred.',
+        );
+      }
+    }
+    throw new Error('Unreachable');
+  };
 
   // Manual submit to bypass handleSubmit hang (react-hook-form + zod v4 issue)
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -407,6 +432,7 @@ export function CompanyRegister() {
     setManualSubmitting(true);
     setValidationErrors([]);
     setSubmitError(null);
+    setSubmitStatus(null);
 
     try {
       const values = getValues();
@@ -442,22 +468,22 @@ export function CompanyRegister() {
         return;
       }
 
-      // 세션 검증 (서버 확인, 타임아웃 적용)
-      const { data: { user: verifiedUser }, error: userError } = await withTimeout(
-        supabase.auth.getUser()
+      // 1. 세션 검증
+      setSubmitStatus('Verifying session...');
+      const { data: { user: verifiedUser }, error: userError } = await withRetry(
+        () => supabase.auth.getUser(),
+        { label: 'Session verification' },
       );
       if (userError || !verifiedUser) {
         setSubmitError('Session expired. Please log in again.');
         return;
       }
 
-      // 이미 등록된 회사가 있는지 확인
-      const { data: existingCompany } = await withTimeout(
-        supabase
-          .from('companies')
-          .select('id')
-          .eq('user_id', user.id)
-          .maybeSingle()
+      // 2. 기존 회사 확인
+      setSubmitStatus('Checking account...');
+      const { data: existingCompany } = await withRetry(
+        () => supabase.from('companies').select('id').eq('user_id', user.id).maybeSingle(),
+        { label: 'Account check' },
       );
 
       if (existingCompany) {
@@ -473,9 +499,10 @@ export function CompanyRegister() {
         try { pendingIntegrations = JSON.parse(pendingRaw); } catch { /* ignore */ }
       }
 
-      // Insert company
-      const { data: company, error: companyError } = await withTimeout(
-        supabase
+      // 3. 회사 등록
+      setSubmitStatus('Registering company...');
+      const { data: company, error: companyError } = await withRetry(
+        () => supabase
           .from('companies')
           .insert({
             user_id: user.id,
@@ -498,7 +525,8 @@ export function CompanyRegister() {
             ga4_connected: pendingIntegrations.ga4?.status === 'connected',
           })
           .select('id')
-          .single()
+          .single(),
+        { label: 'Company registration' },
       );
 
       if (companyError || !company) {
@@ -506,7 +534,8 @@ export function CompanyRegister() {
         return;
       }
 
-      // Insert executives
+      // 4. 팀 등록
+      setSubmitStatus('Saving leadership team...');
       const executives = data.executives.map((exec) => ({
         company_id: company.id,
         name: exec.name,
@@ -518,8 +547,9 @@ export function CompanyRegister() {
         education: exec.education || null,
       }));
 
-      const { error: execError } = await withTimeout(
-        supabase.from('executives').insert(executives)
+      const { error: execError } = await withRetry(
+        () => supabase.from('executives').insert(executives),
+        { label: 'Team registration' },
       );
       if (execError) {
         console.error('Executive insert error:', execError);
@@ -527,21 +557,25 @@ export function CompanyRegister() {
         return;
       }
 
-      // Insert intro video if provided
+      // 5. 비디오/Q&A/메트릭스/뉴스 (실패해도 무시)
+      setSubmitStatus('Saving additional data...');
+
+      // Insert intro video
       if (data.intro_video_url) {
         try {
-          await withTimeout(
-            supabase.from('company_videos').insert({
+          await withRetry(
+            () => supabase.from('company_videos').insert({
               company_id: company.id,
               video_url: data.intro_video_url,
               description: 'Company Introduction',
               is_main: true,
-            })
+            }),
+            { retries: 1, label: 'Video' },
           );
         } catch { /* table may not exist yet */ }
       }
 
-      // Insert Q&A if any questions selected
+      // Insert Q&A
       if (selectedQuestions.length > 0) {
         const questionCategoryMap: Record<string, string> = {
           'What is your current revenue scale?': 'Competitive Advantage',
@@ -565,14 +599,15 @@ export function CompanyRegister() {
 
         if (qnaRows.length > 0) {
           try {
-            await withTimeout(
-              supabase.from('company_qna').insert(qnaRows)
+            await withRetry(
+              () => supabase.from('company_qna').insert(qnaRows),
+              { retries: 1, label: 'Q&A' },
             );
           } catch { /* table may not exist yet */ }
         }
       }
 
-      // Save preview metrics (fetched during OAuth) directly to company_metrics
+      // Save metrics (batch insert 대신 한 번에)
       const allMetrics = [...metricsData.stripe, ...metricsData.ga4];
       if (allMetrics.length > 0) {
         const dbMetrics = allMetrics.map((m) => ({
@@ -585,13 +620,13 @@ export function CompanyRegister() {
           conversions: (m as Record<string, unknown>).conversions as number | null ?? null,
           source: m.source,
         }));
-        for (const metric of dbMetrics) {
-          await supabase
-            .from('company_metrics')
-            .upsert(metric, { onConflict: 'company_id,month,source' })
-            .then(({ error }) => {
-              if (error) console.error('Metric upsert error:', error);
-            });
+        try {
+          await withRetry(
+            () => supabase.from('company_metrics').upsert(dbMetrics, { onConflict: 'company_id,month,source' }),
+            { retries: 1, label: 'Metrics' },
+          );
+        } catch (err) {
+          console.error('Metrics upsert error:', err);
         }
       }
 
@@ -607,7 +642,10 @@ export function CompanyRegister() {
           published_at: n.date,
         }));
         try {
-          await withTimeout(supabase.from('company_news').insert(newsRows));
+          await withRetry(
+            () => supabase.from('company_news').insert(newsRows),
+            { retries: 1, label: 'News' },
+          );
         } catch { /* table may not exist yet */ }
       }
 
@@ -618,6 +656,7 @@ export function CompanyRegister() {
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
       setManualSubmitting(false);
+      setSubmitStatus(null);
     }
   };
 
@@ -1542,10 +1581,15 @@ export function CompanyRegister() {
                 <ArrowRight className="w-4 h-4" />
               </Button>
             ) : (
-              <Button type="submit" isLoading={manualSubmitting} className="gap-2">
-                Submit for Review
-                <Check className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-3">
+                {submitStatus && (
+                  <span className="text-sm text-muted-foreground animate-pulse">{submitStatus}</span>
+                )}
+                <Button type="submit" isLoading={manualSubmitting} className="gap-2">
+                  Submit for Review
+                  <Check className="w-4 h-4" />
+                </Button>
+              </div>
             )}
           </div>
         </form>
