@@ -70,16 +70,29 @@ export function ImageUpload({
       setUploadError(null);
       setImgBroken(false);
 
-      // AbortController로 실제 네트워크 요청도 취소 가능하게
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      // Promise.race로 타임아웃 강제 적용
+      const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+        Promise.race([
+          promise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out`)), ms),
+          ),
+        ]);
 
       try {
-        // 세션 확인
-        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // 세션 확인 (15초 타임아웃)
+        let { data: { session }, error: sessionError } = await withTimeout(
+          supabase.auth.getSession(),
+          15000,
+          'Session check',
+        );
 
         if (!session) {
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          const { data: refreshData, error: refreshError } = await withTimeout(
+            supabase.auth.refreshSession(),
+            15000,
+            'Session refresh',
+          );
           session = refreshData.session;
           sessionError = refreshError;
         }
@@ -92,17 +105,12 @@ export function ImageUpload({
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        const { error: uploadErr } = await supabase.storage
-          .from(bucket)
-          .upload(fileName, file, {
-            upsert: true,
-            ...(controller.signal ? {} : {}),
-          });
-
-        if (controller.signal.aborted) {
-          setUploadError('Upload timed out. Please try again.');
-          return;
-        }
+        // 파일 업로드 (30초 타임아웃)
+        const { error: uploadErr } = await withTimeout(
+          supabase.storage.from(bucket).upload(fileName, file, { upsert: true }),
+          30000,
+          'Image upload',
+        );
 
         if (uploadErr) {
           setUploadError(`Upload failed: ${uploadErr.message}`);
@@ -117,14 +125,10 @@ export function ImageUpload({
         // 부모 form 값도 업데이트
         onChangeRef.current(publicUrl);
       } catch (err) {
-        if (controller.signal.aborted) {
-          setUploadError('Upload timed out. Please try again.');
-        } else {
-          console.error('Image upload error:', err);
-          setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
-        }
+        console.error('Image upload error:', err);
+        const msg = err instanceof Error ? err.message : 'Upload failed.';
+        setUploadError(msg.includes('timed out') ? `${msg} Please try again.` : msg);
       } finally {
-        clearTimeout(timeoutId);
         setUploading(false);
       }
     },
