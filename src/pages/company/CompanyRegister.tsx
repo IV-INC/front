@@ -395,37 +395,6 @@ export function CompanyRegister() {
     );
   };
 
-  // 재시도 + 타임아웃 래퍼
-  const withRetry = async <T,>(
-    fn: () => PromiseLike<T> | Promise<T>,
-    { retries = 2, timeoutMs = 20000, label = '' } = {},
-  ): Promise<T> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        return await Promise.race([
-          Promise.resolve(fn()),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), timeoutMs),
-          ),
-        ]);
-      } catch (err) {
-        const isTimeout = err instanceof Error && err.message === 'timeout';
-        if (attempt < retries) {
-          const delay = 2000 * (attempt + 1);
-          setSubmitStatus(`${label} retrying... (${attempt + 1}/${retries})`);
-          await new Promise((r) => setTimeout(r, delay));
-          continue;
-        }
-        throw new Error(
-          isTimeout
-            ? `${label || 'Request'} timed out after ${retries + 1} attempts. Please check your network and try again.`
-            : err instanceof Error ? err.message : 'An unexpected error occurred.',
-        );
-      }
-    }
-    throw new Error('Unreachable');
-  };
-
   // Manual submit to bypass handleSubmit hang (react-hook-form + zod v4 issue)
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,20 +437,10 @@ export function CompanyRegister() {
         return;
       }
 
-      // 1. 세션 검증
-      setSubmitStatus('Verifying session...');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setSubmitError('Session expired. Please log in again.');
-        return;
-      }
-
-      // 2. 기존 회사 확인
+      // 1. 기존 회사 확인
       setSubmitStatus('Checking account...');
-      const { data: existingCompany } = await withRetry(
-        () => supabase.from('companies').select('id').eq('user_id', user.id).maybeSingle(),
-        { label: 'Account check' },
-      );
+      const { data: existingCompany } = await supabase
+        .from('companies').select('id').eq('user_id', user.id).maybeSingle();
 
       if (existingCompany) {
         setSubmitError('You already have a registered company. Redirecting to edit page...');
@@ -496,42 +455,39 @@ export function CompanyRegister() {
         try { pendingIntegrations = JSON.parse(pendingRaw); } catch { /* ignore */ }
       }
 
-      // 3. 회사 등록
+      // 2. 회사 등록
       setSubmitStatus('Registering company...');
-      const { data: company, error: companyError } = await withRetry(
-        () => supabase
-          .from('companies')
-          .insert({
-            user_id: user.id,
-            name: data.name,
-            logo_url: data.logo_url || null,
-            short_description: data.short_description,
-            description: data.description,
-            founded_at: data.founded_at,
-            location: data.location,
-            employee_count: data.employee_count,
-            category: data.category,
-            stage: data.stage,
-            website_url: data.website_url || null,
-            github_url: data.github_url || null,
-            linkedin_url: data.linkedin_url || null,
-            twitter_url: data.twitter_url || null,
-            youtube_url: data.youtube_url || null,
-            deck_url: companyDeck?.url || null,
-            stripe_connected: pendingIntegrations.stripe?.status === 'connected',
-            ga4_connected: pendingIntegrations.ga4?.status === 'connected',
-          })
-          .select('id')
-          .single(),
-        { label: 'Company registration' },
-      );
+      const { data: company, error: companyError } = await supabase
+        .from('companies')
+        .insert({
+          user_id: user.id,
+          name: data.name,
+          logo_url: data.logo_url || null,
+          short_description: data.short_description,
+          description: data.description,
+          founded_at: data.founded_at,
+          location: data.location,
+          employee_count: data.employee_count,
+          category: data.category,
+          stage: data.stage,
+          website_url: data.website_url || null,
+          github_url: data.github_url || null,
+          linkedin_url: data.linkedin_url || null,
+          twitter_url: data.twitter_url || null,
+          youtube_url: data.youtube_url || null,
+          deck_url: companyDeck?.url || null,
+          stripe_connected: pendingIntegrations.stripe?.status === 'connected',
+          ga4_connected: pendingIntegrations.ga4?.status === 'connected',
+        })
+        .select('id')
+        .single();
 
       if (companyError || !company) {
         setSubmitError(companyError?.message || 'Failed to register company.');
         return;
       }
 
-      // 4. 팀 등록
+      // 3. 팀 등록
       setSubmitStatus('Saving leadership team...');
       const executives = data.executives.map((exec) => ({
         company_id: company.id,
@@ -544,35 +500,29 @@ export function CompanyRegister() {
         education: exec.education || null,
       }));
 
-      const { error: execError } = await withRetry(
-        () => supabase.from('executives').insert(executives),
-        { label: 'Team registration' },
-      );
+      const { error: execError } = await supabase.from('executives').insert(executives);
       if (execError) {
         console.error('Executive insert error:', execError);
         setSubmitError(`Failed to register executives: ${execError.message}`);
         return;
       }
 
-      // 5. 비디오/Q&A/메트릭스/뉴스 (실패해도 무시)
+      // 4. 부가 데이터 (실패해도 무시, 병렬 실행)
       setSubmitStatus('Saving additional data...');
 
-      // Insert intro video
+      const promises: Promise<unknown>[] = [];
+
       if (data.intro_video_url) {
-        try {
-          await withRetry(
-            () => supabase.from('company_videos').insert({
-              company_id: company.id,
-              video_url: data.intro_video_url,
-              description: 'Company Introduction',
-              is_main: true,
-            }),
-            { retries: 1, label: 'Video' },
-          );
-        } catch { /* table may not exist yet */ }
+        promises.push(
+          supabase.from('company_videos').insert({
+            company_id: company.id,
+            video_url: data.intro_video_url,
+            description: 'Company Introduction',
+            is_main: true,
+          }).then(() => {}, () => {}),
+        );
       }
 
-      // Insert Q&A
       if (selectedQuestions.length > 0) {
         const questionCategoryMap: Record<string, string> = {
           'What is your current revenue scale?': 'Competitive Advantage',
@@ -584,7 +534,6 @@ export function CompanyRegister() {
           'What is your biggest challenge right now?': 'Capability Gap',
           'Do you have an exit strategy?': 'Acquisition Offer',
         };
-
         const qnaRows = selectedQuestions
           .filter((q) => questionAnswers[q]?.trim())
           .map((q) => ({
@@ -593,18 +542,13 @@ export function CompanyRegister() {
             question: q,
             answer: questionAnswers[q].trim(),
           }));
-
         if (qnaRows.length > 0) {
-          try {
-            await withRetry(
-              () => supabase.from('company_qna').insert(qnaRows),
-              { retries: 1, label: 'Q&A' },
-            );
-          } catch { /* table may not exist yet */ }
+          promises.push(
+            supabase.from('company_qna').insert(qnaRows).then(() => {}, () => {}),
+          );
         }
       }
 
-      // Save metrics (batch insert 대신 한 번에)
       const allMetrics = [...metricsData.stripe, ...metricsData.ga4];
       if (allMetrics.length > 0) {
         const dbMetrics = allMetrics.map((m) => ({
@@ -617,17 +561,11 @@ export function CompanyRegister() {
           conversions: (m as Record<string, unknown>).conversions as number | null ?? null,
           source: m.source,
         }));
-        try {
-          await withRetry(
-            () => supabase.from('company_metrics').upsert(dbMetrics, { onConflict: 'company_id,month,source' }),
-            { retries: 1, label: 'Metrics' },
-          );
-        } catch (err) {
-          console.error('Metrics upsert error:', err);
-        }
+        promises.push(
+          supabase.from('company_metrics').upsert(dbMetrics, { onConflict: 'company_id,month,source' }).then(() => {}, () => {}),
+        );
       }
 
-      // Insert company news
       const validNews = newsItems.filter((n) => n.title.trim() && n.date);
       if (validNews.length > 0) {
         const newsRows = validNews.map((n) => ({
@@ -638,15 +576,14 @@ export function CompanyRegister() {
           thumbnail_url: null,
           published_at: n.date,
         }));
-        try {
-          await withRetry(
-            () => supabase.from('company_news').insert(newsRows),
-            { retries: 1, label: 'News' },
-          );
-        } catch { /* table may not exist yet */ }
+        promises.push(
+          supabase.from('company_news').insert(newsRows).then(() => {}, () => {}),
+        );
       }
 
-      // Clear pending integrations from localStorage
+      // 부가 데이터 병렬 실행 (실패 무시)
+      await Promise.all(promises);
+
       localStorage.removeItem('pending_integrations');
       navigate('/dashboard');
     } catch (error) {

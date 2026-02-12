@@ -117,37 +117,6 @@ export function CompanyEdit() {
   // Integration disconnect state
   const [disconnectLoading, setDisconnectLoading] = useState<'stripe' | 'ga4' | null>(null);
 
-  // 재시도 + 타임아웃 래퍼
-  const withRetry = async <T,>(
-    fn: () => PromiseLike<T> | Promise<T>,
-    { retries = 2, timeoutMs = 20000, label = '' } = {},
-  ): Promise<T> => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        return await Promise.race([
-          Promise.resolve(fn()),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), timeoutMs),
-          ),
-        ]);
-      } catch (err) {
-        const isTimeout = err instanceof Error && err.message === 'timeout';
-        if (attempt < retries) {
-          const delay = 2000 * (attempt + 1);
-          setSubmitStatus(`${label} retrying... (${attempt + 1}/${retries})`);
-          await new Promise((r) => setTimeout(r, delay));
-          continue;
-        }
-        throw new Error(
-          isTimeout
-            ? `${label || 'Request'} timed out after ${retries + 1} attempts. Please check your network and try again.`
-            : err instanceof Error ? err.message : 'An unexpected error occurred.',
-        );
-      }
-    }
-    throw new Error('Unreachable');
-  };
-
   const {
     register,
     control,
@@ -469,79 +438,37 @@ export function CompanyEdit() {
         return;
       }
 
-      // 1. 세션 검증
-      setSubmitStatus('Verifying session...');
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setSubmitError('Session expired. Please log in again.');
-        return;
-      }
-
-      // 2. 회사 정보 업데이트
+      // 1. 회사 정보 업데이트
       setSubmitStatus('Updating company info...');
-      const { error: companyError } = await withRetry(
-        () => supabase
-          .from('companies')
-          .update({
-            name: data.name,
-            logo_url: data.logo_url || null,
-            short_description: data.short_description,
-            description: data.description,
-            founded_at: data.founded_at,
-            location: data.location,
-            employee_count: data.employee_count,
-            category: data.category,
-            stage: data.stage,
-            website_url: data.website_url || null,
-            github_url: data.github_url || null,
-            linkedin_url: data.linkedin_url || null,
-            twitter_url: data.twitter_url || null,
-            youtube_url: data.youtube_url || null,
-            deck_url: companyDeck?.url || null,
-          })
-          .eq('id', company.id),
-        { label: 'Company update' },
-      );
+      const { error: companyError } = await supabase
+        .from('companies')
+        .update({
+          name: data.name,
+          logo_url: data.logo_url || null,
+          short_description: data.short_description,
+          description: data.description,
+          founded_at: data.founded_at,
+          location: data.location,
+          employee_count: data.employee_count,
+          category: data.category,
+          stage: data.stage,
+          website_url: data.website_url || null,
+          github_url: data.github_url || null,
+          linkedin_url: data.linkedin_url || null,
+          twitter_url: data.twitter_url || null,
+          youtube_url: data.youtube_url || null,
+          deck_url: companyDeck?.url || null,
+        })
+        .eq('id', company.id);
 
       if (companyError) {
         setSubmitError(`Failed to update company: ${companyError.message}`);
         return;
       }
 
-      // 3. 팀 업데이트 (Delete-then-insert)
+      // 2. 팀 업데이트 (Delete-then-insert)
       setSubmitStatus('Updating leadership team...');
-      const { error: deleteExecError } = await withRetry(
-        () => supabase.from('executives').delete().eq('company_id', company.id),
-        { label: 'Team cleanup' },
-      );
-
-      if (deleteExecError) {
-        setSubmitError(`Failed to delete executives: ${deleteExecError.message}`);
-        return;
-      }
-
-      // Verify deletion actually worked (RLS may silently block it)
-      const { data: remaining } = await withRetry(
-        () => supabase.from('executives').select('id').eq('company_id', company.id),
-        { retries: 0, label: 'Verify deletion' },
-      );
-
-      if (remaining && remaining.length > 0) {
-        for (const row of remaining) {
-          await withRetry(
-            () => supabase.from('executives').delete().eq('id', row.id),
-            { retries: 0, label: 'Delete executive' },
-          );
-        }
-        const { data: stillRemaining } = await withRetry(
-          () => supabase.from('executives').select('id').eq('company_id', company.id),
-          { retries: 0 },
-        );
-        if (stillRemaining && stillRemaining.length > 0) {
-          setSubmitError('Unable to update leadership team. Please check database permissions (RLS DELETE policy on executives table).');
-          return;
-        }
-      }
+      await supabase.from('executives').delete().eq('company_id', company.id);
 
       const executives = data.executives.map((exec) => ({
         company_id: company.id,
@@ -554,80 +481,69 @@ export function CompanyEdit() {
         education: exec.education || null,
       }));
 
-      const { error: insertExecError } = await withRetry(
-        () => supabase.from('executives').insert(executives),
-        { label: 'Team registration' },
-      );
+      const { error: insertExecError } = await supabase.from('executives').insert(executives);
       if (insertExecError) {
         setSubmitError(`Failed to insert executives: ${insertExecError.message}`);
         return;
       }
 
-      // 4. 부가 데이터 저장 (실패해도 무시)
+      // 3. 부가 데이터 병렬 저장 (실패해도 무시)
       setSubmitStatus('Saving additional data...');
 
-      // Delete-then-insert main video
-      try {
-        await withRetry(
-          () => supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true),
-          { retries: 1, label: 'Video cleanup' },
-        );
-        if (data.intro_video_url) {
-          await withRetry(
-            () => supabase.from('company_videos').insert({
-              company_id: company.id,
-              video_url: data.intro_video_url,
-              description: 'Company Introduction',
-              is_main: true,
-            }),
-            { retries: 1, label: 'Video' },
-          );
-        }
-      } catch { /* table may not exist yet */ }
+      const promises: Promise<unknown>[] = [];
 
-      // Delete-then-insert Q&A
-      try {
-        await withRetry(
-          () => supabase.from('company_qna').delete().eq('company_id', company.id),
-          { retries: 1, label: 'Q&A cleanup' },
-        );
+      // Video
+      promises.push(
+        supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true)
+          .then(() => {
+            if (data.intro_video_url) {
+              return supabase.from('company_videos').insert({
+                company_id: company.id,
+                video_url: data.intro_video_url,
+                description: 'Company Introduction',
+                is_main: true,
+              });
+            }
+          })
+          .then(() => {}, () => {}),
+      );
 
-        const qnaRows = selectedQuestions
-          .filter((q) => questionAnswers[q]?.trim())
-          .map((q) => ({
-            company_id: company.id,
-            category: (questionCategoryMap[q] || 'Competitive Advantage') as QnACategory,
-            question: q,
-            answer: questionAnswers[q].trim(),
-          }));
+      // Q&A
+      promises.push(
+        supabase.from('company_qna').delete().eq('company_id', company.id)
+          .then(() => {
+            const qnaRows = selectedQuestions
+              .filter((q) => questionAnswers[q]?.trim())
+              .map((q) => ({
+                company_id: company.id,
+                category: (questionCategoryMap[q] || 'Competitive Advantage') as QnACategory,
+                question: q,
+                answer: questionAnswers[q].trim(),
+              }));
+            if (qnaRows.length > 0) {
+              return supabase.from('company_qna').insert(qnaRows);
+            }
+          })
+          .then(() => {}, () => {}),
+      );
 
-        if (qnaRows.length > 0) {
-          await withRetry(
-            () => supabase.from('company_qna').insert(qnaRows),
-            { retries: 1, label: 'Q&A' },
-          );
-        }
-      } catch { /* table may not exist yet */ }
-
-      // Insert new news items
+      // News
       const validNewNews = newNewsItems.filter((n) => n.title.trim() && n.date);
       if (validNewNews.length > 0) {
-        try {
-          const newsRows = validNewNews.map((n) => ({
-            company_id: company.id,
-            title: n.title.trim(),
-            external_link: n.url.trim() || null,
-            summary: n.source.trim() || null,
-            thumbnail_url: null,
-            published_at: n.date,
-          }));
-          await withRetry(
-            () => supabase.from('company_news').insert(newsRows),
-            { retries: 1, label: 'News' },
-          );
-        } catch { /* table may not exist yet */ }
+        const newsRows = validNewNews.map((n) => ({
+          company_id: company.id,
+          title: n.title.trim(),
+          external_link: n.url.trim() || null,
+          summary: n.source.trim() || null,
+          thumbnail_url: null,
+          published_at: n.date,
+        }));
+        promises.push(
+          supabase.from('company_news').insert(newsRows).then(() => {}, () => {}),
+        );
       }
 
+      await Promise.all(promises);
       navigate('/dashboard');
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred.');
