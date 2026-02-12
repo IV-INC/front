@@ -490,7 +490,7 @@ export function CompanyEdit() {
       // 3. 부가 데이터 병렬 저장 (실패해도 무시)
       setSubmitStatus('Saving additional data...');
 
-      const promises: Promise<unknown>[] = [];
+      const promises: PromiseLike<unknown>[] = [];
 
       // Video
       promises.push(

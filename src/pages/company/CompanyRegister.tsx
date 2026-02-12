@@ -510,7 +510,7 @@ export function CompanyRegister() {
       // 4. 부가 데이터 (실패해도 무시, 병렬 실행)
       setSubmitStatus('Saving additional data...');
 
-      const promises: Promise<unknown>[] = [];
+      const promises: PromiseLike<unknown>[] = [];
 
       if (data.intro_video_url) {
         promises.push(
