@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { supabase } from '@/lib/supabase';
 
 interface ImageUploadProps {
   label?: string;
@@ -21,6 +20,23 @@ const sizeMap = {
   md: 'w-32 h-32',
   lg: 'w-40 h-40',
 };
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+/** localStorage에서 Supabase JWT를 직접 읽기 (SDK auth lock 완전 우회) */
+function getAccessToken(): string {
+  try {
+    const key = Object.keys(localStorage).find(
+      (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
+    );
+    if (key) {
+      const parsed = JSON.parse(localStorage.getItem(key) || '');
+      if (parsed?.access_token) return parsed.access_token;
+    }
+  } catch { /* ignore */ }
+  return SUPABASE_ANON_KEY;
+}
 
 export function ImageUpload({
   label,
@@ -72,22 +88,48 @@ export function ImageUpload({
       try {
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
+        const token = getAccessToken();
 
-        const { error: uploadErr } = await supabase.storage
-          .from(bucket)
-          .upload(fileName, file, { upsert: true });
+        // SDK 완전 우회 — fetch로 Storage REST API 직접 호출
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        if (uploadErr) {
-          setUploadError(`Upload failed: ${uploadErr.message}`);
+        const res = await fetch(
+          `${SUPABASE_URL}/storage/v1/object/${bucket}/${fileName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'apikey': SUPABASE_ANON_KEY,
+              'x-upsert': 'true',
+            },
+            body: file,
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          if (res.status === 401 || res.status === 403) {
+            setUploadError('Please log in again to upload.');
+          } else {
+            setUploadError(`Upload failed (${res.status}): ${body || res.statusText}`);
+          }
           return;
         }
 
-        const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-        setPreviewUrl(data.publicUrl);
-        onChangeRef.current(data.publicUrl);
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${fileName}`;
+        setPreviewUrl(publicUrl);
+        onChangeRef.current(publicUrl);
       } catch (err) {
-        console.error('Image upload error:', err);
-        setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          setUploadError('Upload timed out. Please try again.');
+        } else {
+          console.error('Image upload error:', err);
+          setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+        }
       } finally {
         setUploading(false);
       }
