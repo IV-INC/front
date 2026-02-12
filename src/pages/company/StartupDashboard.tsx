@@ -448,12 +448,12 @@ export function StartupDashboard() {
             </h3>
             <div className="space-y-4">
               {qna.map((item) => (
-                <div key={item.id} className="p-4 rounded-lg bg-secondary/50 border border-border">
+                <div key={item.id} className="p-4 rounded-lg bg-secondary/50 border border-border overflow-hidden min-w-0">
                   <div className="flex items-start gap-2 mb-2">
                     <Badge variant="outline" className="text-xs flex-shrink-0">{item.category}</Badge>
                   </div>
                   <p className="font-medium text-sm mb-2">{item.question}</p>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.answer}</p>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap break-all overflow-hidden">{item.answer}</p>
                 </div>
               ))}
             </div>
