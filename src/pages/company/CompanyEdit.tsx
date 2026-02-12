@@ -1602,10 +1602,15 @@ export function CompanyEdit() {
               <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </Button>
-            <Button type="submit" isLoading={manualSubmitting} className="gap-2">
-              Save Changes
-              <Check className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {submitStatus && (
+                <span className="text-sm text-muted-foreground animate-pulse">{submitStatus}</span>
+              )}
+              <Button type="submit" isLoading={manualSubmitting} className="gap-2">
+                Save Changes
+                <Check className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </form>
       </div>
