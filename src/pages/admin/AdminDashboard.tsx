@@ -846,7 +846,7 @@ function CompanyDetailView({
   onEdit: (company: CompanyWithDetails) => void;
 }) {
   const currentStatus = getTabStatus(company);
-  const mainVideo = company.videos?.find((v) => v.is_main);
+  const mainVideo = company.videos?.find((v) => v.is_main) ?? company.videos?.[0];
   const isPinned = company.pinned_until && company.pinned_until > new Date().toISOString();
 
   return (
@@ -1136,7 +1136,29 @@ function CompanyDetailView({
                   />
                 </div>
                 <p className="mt-2 text-xs text-neutral-500 break-all">URL: {mainVideo.video_url}</p>
+                <p className="mt-1 text-xs text-neutral-600">Embed: {toEmbedUrl(mainVideo.video_url)}</p>
                 {mainVideo.description && <p className="mt-1 text-sm text-neutral-400">{mainVideo.description}</p>}
+                {/* Additional videos */}
+                {company.videos && company.videos.length > 1 && (
+                  <div className="mt-4 pt-4 space-y-3" style={{ borderTop: '1px solid #404040' }}>
+                    <p className="text-xs text-neutral-500">Other Videos</p>
+                    {company.videos.filter((v) => v.id !== mainVideo.id).map((v) => (
+                      <div key={v.id} className="p-3 rounded-lg" style={{ background: '#1a1a1a' }}>
+                        <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                          <iframe
+                            src={toEmbedUrl(v.video_url)}
+                            title={v.description || 'Video'}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-neutral-500 break-all">{v.video_url}</p>
+                        {v.description && <p className="text-xs text-neutral-400 mt-1">{v.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-neutral-500 py-4 text-center">No video uploaded</p>
@@ -1162,41 +1184,41 @@ function CompanyDetailView({
             {company.executives && company.executives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {company.executives.map((e) => (
-                  <div key={e.id} className="p-4 rounded-lg space-y-3" style={{ background: '#1a1a1a' }}>
-                    <div className="flex items-center gap-3">
+                  <div key={e.id} className="p-4 rounded-lg space-y-3 overflow-hidden min-w-0" style={{ background: '#1a1a1a' }}>
+                    <div className="flex items-center gap-3 min-w-0">
                       {e.photo_url ? (
-                        <img src={e.photo_url} alt={e.name} className="h-14 w-14 rounded-full object-cover" />
+                        <img src={e.photo_url} alt={e.name} className="h-14 w-14 rounded-full object-cover flex-shrink-0" />
                       ) : (
-                        <div className="h-14 w-14 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#404040', color: '#a3a3a3' }}>
+                        <div className="h-14 w-14 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0" style={{ background: '#404040', color: '#a3a3a3' }}>
                           {e.name[0]}
                         </div>
                       )}
-                      <div>
-                        <p className="font-medium text-white">{e.name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-white truncate">{e.name}</p>
                         <p className="text-xs text-blue-400">{e.role}</p>
                       </div>
                     </div>
                     {e.bio && (
-                      <div>
+                      <div className="overflow-hidden">
                         <p className="text-xs text-neutral-500 mb-1">Bio</p>
-                        <p className="text-xs text-neutral-400">{e.bio}</p>
+                        <p className="text-xs text-neutral-400 whitespace-pre-line" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{e.bio}</p>
                       </div>
                     )}
                     {e.education && (
-                      <div>
+                      <div className="overflow-hidden">
                         <p className="text-xs text-neutral-500 mb-1">Education</p>
-                        <p className="text-xs text-neutral-400">{e.education}</p>
+                        <p className="text-xs text-neutral-400" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{e.education}</p>
                       </div>
                     )}
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {e.linkedin_url && (
-                        <a href={e.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80" style={{ background: '#262626', color: '#60a5fa' }}>
-                          <Linkedin className="h-3 w-3" /> LinkedIn
+                        <a href={e.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 truncate max-w-full" style={{ background: '#262626', color: '#60a5fa' }}>
+                          <Linkedin className="h-3 w-3 flex-shrink-0" /> LinkedIn
                         </a>
                       )}
                       {e.twitter_url && (
-                        <a href={e.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80" style={{ background: '#262626', color: '#60a5fa' }}>
-                          <XIcon className="h-3 w-3" /> X
+                        <a href={e.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80 truncate max-w-full" style={{ background: '#262626', color: '#60a5fa' }}>
+                          <XIcon className="h-3 w-3 flex-shrink-0" /> X
                         </a>
                       )}
                     </div>
@@ -1215,12 +1237,43 @@ function CompanyDetailView({
               <span className="text-xs font-normal text-neutral-500">({company.metrics?.length ?? 0} data points)</span>
             </h3>
             {company.metrics && company.metrics.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <DarkMetricChart title="Monthly Revenue" data={company.metrics} dataKey="revenue" color="#6366f1" format={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                <DarkMetricChart title="MAU" data={company.metrics} dataKey="mau" color="#10b981" format={(v) => v.toLocaleString()} />
-                <DarkMetricChart title="Retention" data={company.metrics} dataKey="retention" color="#f59e0b" format={(v) => `${v}%`} />
-                <DarkMetricChart title="Sessions" data={company.metrics} dataKey="sessions" color="#34a853" format={(v) => v.toLocaleString()} />
-                <DarkMetricChart title="Conversions" data={company.metrics} dataKey="conversions" color="#ea4335" format={(v) => v.toLocaleString()} />
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <DarkMetricChart title="Monthly Revenue" data={company.metrics} dataKey="revenue" color="#6366f1" format={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <DarkMetricChart title="MAU" data={company.metrics} dataKey="mau" color="#10b981" format={(v) => v.toLocaleString()} />
+                  <DarkMetricChart title="Retention" data={company.metrics} dataKey="retention" color="#f59e0b" format={(v) => `${v}%`} />
+                  <DarkMetricChart title="Sessions" data={company.metrics} dataKey="sessions" color="#34a853" format={(v) => v.toLocaleString()} />
+                  <DarkMetricChart title="Conversions" data={company.metrics} dataKey="conversions" color="#ea4335" format={(v) => v.toLocaleString()} />
+                </div>
+                {/* Raw data table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #404040' }}>
+                        <th className="text-left py-2 px-2 text-neutral-500 font-medium">Month</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">Revenue</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">MAU</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">Retention</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">Sessions</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">Conversions</th>
+                        <th className="text-right py-2 px-2 text-neutral-500 font-medium">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {company.metrics.map((m) => (
+                        <tr key={m.id} style={{ borderBottom: '1px solid #333' }}>
+                          <td className="py-1.5 px-2 text-neutral-300">{m.month}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-400">{m.revenue != null ? `$${m.revenue.toLocaleString()}` : '-'}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-400">{m.mau != null ? m.mau.toLocaleString() : '-'}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-400">{m.retention != null ? `${m.retention}%` : '-'}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-400">{m.sessions != null ? m.sessions.toLocaleString() : '-'}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-400">{m.conversions != null ? m.conversions.toLocaleString() : '-'}</td>
+                          <td className="py-1.5 px-2 text-right text-neutral-500">{m.source}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-neutral-500 py-4 text-center">No metrics data</p>
@@ -1270,12 +1323,12 @@ function CompanyDetailView({
             {company.qna && company.qna.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {company.qna.map((q) => (
-                  <div key={q.id} className="p-4 rounded-lg space-y-2" style={{ background: '#1a1a1a' }}>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa' }}>
+                  <div key={q.id} className="p-4 rounded-lg space-y-2 overflow-hidden" style={{ background: '#1a1a1a' }}>
+                    <span className="text-xs px-2 py-0.5 rounded inline-block" style={{ background: '#1e3a5f', color: '#60a5fa' }}>
                       {q.category}
                     </span>
-                    <p className="font-medium text-white text-sm">{q.question}</p>
-                    <p className="text-xs text-neutral-400 whitespace-pre-line">{q.answer}</p>
+                    <p className="font-medium text-white text-sm" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{q.question}</p>
+                    <p className="text-sm text-neutral-300 whitespace-pre-line leading-relaxed" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{q.answer}</p>
                   </div>
                 ))}
               </div>
