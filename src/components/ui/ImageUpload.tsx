@@ -70,50 +70,30 @@ export function ImageUpload({
       setUploadError(null);
       setImgBroken(false);
 
-      // Promise.race로 타임아웃 강제 적용
-      const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
-        Promise.race([
-          promise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error(`${label} timed out`)), ms),
-          ),
-        ]);
-
       try {
-        // 세션 확인 (15초 타임아웃)
-        let { data: { session }, error: sessionError } = await withTimeout(
-          supabase.auth.getSession(),
-          15000,
-          'Session check',
-        );
-
-        if (!session) {
-          const { data: refreshData, error: refreshError } = await withTimeout(
-            supabase.auth.refreshSession(),
-            15000,
-            'Session refresh',
-          );
-          session = refreshData.session;
-          sessionError = refreshError;
-        }
-
-        if (sessionError || !session) {
-          setUploadError('Please log in again to upload.');
-          return;
-        }
-
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        // 파일 업로드 (30초 타임아웃)
-        const { error: uploadErr } = await withTimeout(
-          supabase.storage.from(bucket).upload(fileName, file, { upsert: true }),
-          30000,
-          'Image upload',
-        );
+        // 파일 업로드 (30초 타임아웃) — 세션이 없으면 Supabase가 자체 auth 에러 반환
+        const uploadPromise = supabase.storage
+          .from(bucket)
+          .upload(fileName, file, { upsert: true });
 
-        if (uploadErr) {
-          setUploadError(`Upload failed: ${uploadErr.message}`);
+        const result = await Promise.race([
+          uploadPromise,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Upload timed out. Please try again.')), 30000),
+          ),
+        ]);
+
+        if (result.error) {
+          // 인증 관련 에러 메시지 변환
+          const msg = result.error.message;
+          if (msg.includes('auth') || msg.includes('JWT') || msg.includes('token') || msg.includes('policy')) {
+            setUploadError('Please log in again to upload.');
+          } else {
+            setUploadError(`Upload failed: ${msg}`);
+          }
           return;
         }
 
@@ -126,8 +106,7 @@ export function ImageUpload({
         onChangeRef.current(publicUrl);
       } catch (err) {
         console.error('Image upload error:', err);
-        const msg = err instanceof Error ? err.message : 'Upload failed.';
-        setUploadError(msg.includes('timed out') ? `${msg} Please try again.` : msg);
+        setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
       } finally {
         setUploading(false);
       }

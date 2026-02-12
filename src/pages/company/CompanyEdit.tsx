@@ -469,15 +469,28 @@ export function CompanyEdit() {
         return;
       }
 
-      // 1. 세션 검증 (로컬 캐시 → 네트워크 호출 불필요)
+      // 1. 세션 검증 — getSession()도 내부적으로 토큰 갱신 시도하므로 타임아웃 적용
       setSubmitStatus('Verifying session...');
-      let { data: { session } } = await supabase.auth.getSession();
+      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
+      try {
+        const res = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+        ]);
+        session = res.data.session;
+      } catch {
+        // getSession 타임아웃 → 세션 없이 계속 진행
+      }
       if (!session) {
-        const { data: refreshData } = await withRetry(
-          () => supabase.auth.refreshSession(),
-          { retries: 1, label: 'Session refresh' },
-        );
-        session = refreshData.session;
+        try {
+          const refreshRes = await Promise.race([
+            supabase.auth.refreshSession(),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+          ]);
+          session = refreshRes.data.session;
+        } catch {
+          // refresh도 실패
+        }
       }
       if (!session) {
         setSubmitError('Session expired. Please log in again.');
