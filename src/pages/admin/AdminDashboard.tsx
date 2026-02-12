@@ -171,27 +171,44 @@ export function AdminDashboard() {
   }, [companies]);
 
   // Load company detail
+  const [detailError, setDetailError] = useState<string | null>(null);
+
   const loadDetail = async (company: Company) => {
     setDetailLoading(true);
+    setDetailError(null);
     setSelectedCompany({ ...company });
 
-    const [execRes, qnaRes, newsRes, videoRes, metricRes] = await Promise.all([
-      supabase.from('executives').select('*').eq('company_id', company.id).order('created_at'),
-      supabase.from('company_qna').select('*').eq('company_id', company.id).order('created_at'),
-      supabase.from('company_news').select('*').eq('company_id', company.id).order('published_at', { ascending: false }),
-      supabase.from('company_videos').select('*').eq('company_id', company.id).order('is_main', { ascending: false }),
-      supabase.from('company_metrics').select('*').eq('company_id', company.id).order('month'),
-    ]);
+    try {
+      const [execRes, qnaRes, newsRes, videoRes, metricRes] = await Promise.all([
+        supabase.from('executives').select('*').eq('company_id', company.id).order('created_at'),
+        supabase.from('company_qna').select('*').eq('company_id', company.id).order('created_at'),
+        supabase.from('company_news').select('*').eq('company_id', company.id).order('published_at', { ascending: false }),
+        supabase.from('company_videos').select('*').eq('company_id', company.id).order('is_main', { ascending: false }),
+        supabase.from('company_metrics').select('*').eq('company_id', company.id).order('month'),
+      ]);
 
-    setSelectedCompany({
-      ...company,
-      executives: execRes.data ?? [],
-      qna: qnaRes.data ?? [],
-      news: newsRes.data ?? [],
-      videos: videoRes.data ?? [],
-      metrics: metricRes.data ?? [],
-    });
-    setDetailLoading(false);
+      const errors: string[] = [];
+      if (execRes.error) errors.push(`Team: ${execRes.error.message}`);
+      if (qnaRes.error) errors.push(`Q&A: ${qnaRes.error.message}`);
+      if (newsRes.error) errors.push(`News: ${newsRes.error.message}`);
+      if (videoRes.error) errors.push(`Videos: ${videoRes.error.message}`);
+      if (metricRes.error) errors.push(`Metrics: ${metricRes.error.message}`);
+      if (errors.length > 0) setDetailError(errors.join(' | '));
+
+      setSelectedCompany({
+        ...company,
+        executives: execRes.data ?? [],
+        qna: qnaRes.data ?? [],
+        news: newsRes.data ?? [],
+        videos: videoRes.data ?? [],
+        metrics: metricRes.data ?? [],
+      });
+    } catch (err) {
+      console.error('Failed to load company details:', err);
+      setDetailError(err instanceof Error ? err.message : 'Failed to load company details');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   // Accept
@@ -458,8 +475,9 @@ export function AdminDashboard() {
           <CompanyDetailView
             company={selectedCompany}
             loading={detailLoading}
+            error={detailError}
             actionLoading={actionLoading}
-            onBack={() => setSelectedCompany(null)}
+            onBack={() => { setSelectedCompany(null); setDetailError(null); }}
             onAccept={handleAccept}
             onReject={openRejectDialog}
             onPin={(id) => { setPinTargetId(id); setPinDays(7); setPinDialogOpen(true); }}
@@ -716,6 +734,8 @@ function CompanyCard({ company, onClick }: { company: Company; onClick: () => vo
   const status = getTabStatus(company);
   const isPinned = company.pinned_until && company.pinned_until > new Date().toISOString();
 
+  const linkCount = [company.website_url, company.github_url, company.linkedin_url, company.twitter_url, company.youtube_url].filter(Boolean).length;
+
   return (
     <button
       onClick={onClick}
@@ -739,6 +759,12 @@ function CompanyCard({ company, onClick }: { company: Company; onClick: () => vo
           <p className="text-sm text-neutral-400 truncate">{company.short_description}</p>
         </div>
       </div>
+
+      {/* Description preview */}
+      {company.description && (
+        <p className="text-xs text-neutral-500 mt-2 line-clamp-2">{company.description}</p>
+      )}
+
       <div className="flex flex-wrap gap-2 mt-3">
         <span className="text-xs px-2 py-0.5 rounded" style={{ background: '#1e3a5f', color: '#60a5fa' }}>
           {company.category}
@@ -757,6 +783,26 @@ function CompanyCard({ company, onClick }: { company: Company; onClick: () => vo
         <span className="flex items-center gap-1">
           <Users className="h-3 w-3" /> {company.employee_count}
         </span>
+        {linkCount > 0 && (
+          <span className="flex items-center gap-1">
+            <Globe className="h-3 w-3" /> {linkCount} links
+          </span>
+        )}
+        {company.deck_url && (
+          <span className="flex items-center gap-1">
+            <FileText className="h-3 w-3" /> Deck
+          </span>
+        )}
+        {company.stripe_connected && (
+          <span className="flex items-center gap-1 text-indigo-400">
+            <CreditCard className="h-3 w-3" /> Stripe
+          </span>
+        )}
+        {company.ga4_connected && (
+          <span className="flex items-center gap-1 text-amber-400">
+            <BarChart3 className="h-3 w-3" /> GA4
+          </span>
+        )}
         {status === 'rejected' ? (
           <XCircle className="h-3 w-3 text-red-500" />
         ) : company.is_visible ? (
@@ -773,6 +819,7 @@ function CompanyCard({ company, onClick }: { company: Company; onClick: () => vo
 function CompanyDetailView({
   company,
   loading,
+  error,
   actionLoading,
   onBack,
   onAccept,
@@ -786,6 +833,7 @@ function CompanyDetailView({
 }: {
   company: CompanyWithDetails;
   loading: boolean;
+  error: string | null;
   actionLoading: boolean;
   onBack: () => void;
   onAccept: (id: string) => void;
@@ -866,6 +914,34 @@ function CompanyDetailView({
         </div>
       ) : (
         <>
+          {/* Error Notice */}
+          {error && (
+            <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#422006', border: '1px solid #854d0e' }}>
+              <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-300">Data Loading Warning</p>
+                <p className="text-xs text-yellow-400 mt-1">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Data Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {[
+              { label: 'Team', count: company.executives?.length ?? 0, icon: Users },
+              { label: 'Videos', count: company.videos?.length ?? 0, icon: Play },
+              { label: 'Q&A', count: company.qna?.length ?? 0, icon: MessageSquare },
+              { label: 'News', count: company.news?.length ?? 0, icon: ExternalLink },
+              { label: 'Metrics', count: company.metrics?.length ?? 0, icon: BarChart3 },
+            ].map(({ label, count, icon: Icon }) => (
+              <div key={label} className="p-3 rounded-lg text-center" style={{ background: '#262626', border: '1px solid #404040' }}>
+                <Icon className="h-4 w-4 mx-auto mb-1 text-neutral-500" />
+                <p className="text-lg font-semibold text-white">{count}</p>
+                <p className="text-xs text-neutral-500">{label}</p>
+              </div>
+            ))}
+          </div>
+
           {/* Pin Notice */}
           {isPinned && (
             <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: '#422006', border: '1px solid #854d0e' }}>
@@ -949,115 +1025,196 @@ function CompanyDetailView({
               <span className="flex items-center gap-1"><Users className="h-4 w-4" /> {company.employee_count} employees</span>
               <span className="flex items-center gap-1"><MapPin className="h-4 w-4" /> {company.location}</span>
             </div>
-            <div className="flex flex-wrap gap-2 mt-4">
-              {company.website_url && (
-                <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <Globe className="h-3 w-3" /> Website
-                </a>
-              )}
-              {company.github_url && (
-                <a href={company.github_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <ExternalLink className="h-3 w-3" /> GitHub
-                </a>
-              )}
-              {company.linkedin_url && (
-                <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <Linkedin className="h-3 w-3" /> LinkedIn
-                </a>
-              )}
-              {company.twitter_url && (
-                <a href={company.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <XIcon className="h-3 w-3" /> X
-                </a>
-              )}
-              {company.youtube_url && (
-                <a href={company.youtube_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <Youtube className="h-3 w-3" /> YouTube
-                </a>
-              )}
-              {company.deck_url && (
-                <a href={company.deck_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <FileText className="h-3 w-3" /> IR Deck
-                </a>
-              )}
+
+            {/* Links */}
+            <div className="mt-4 pt-4" style={{ borderTop: '1px solid #404040' }}>
+              <p className="text-xs text-neutral-500 mb-2">Links</p>
+              <div className="flex flex-wrap gap-2">
+                {company.website_url ? (
+                  <a href={company.website_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <Globe className="h-3 w-3" /> Website
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <Globe className="h-3 w-3" /> No Website
+                  </span>
+                )}
+                {company.github_url ? (
+                  <a href={company.github_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <ExternalLink className="h-3 w-3" /> GitHub
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <ExternalLink className="h-3 w-3" /> No GitHub
+                  </span>
+                )}
+                {company.linkedin_url ? (
+                  <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <Linkedin className="h-3 w-3" /> LinkedIn
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <Linkedin className="h-3 w-3" /> No LinkedIn
+                  </span>
+                )}
+                {company.twitter_url ? (
+                  <a href={company.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <XIcon className="h-3 w-3" /> X
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <XIcon className="h-3 w-3" /> No X
+                  </span>
+                )}
+                {company.youtube_url ? (
+                  <a href={company.youtube_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <Youtube className="h-3 w-3" /> YouTube
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <Youtube className="h-3 w-3" /> No YouTube
+                  </span>
+                )}
+                {company.deck_url ? (
+                  <a href={company.deck_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                    <FileText className="h-3 w-3" /> IR Deck
+                  </a>
+                ) : (
+                  <span className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#1a1a1a', color: '#525252' }}>
+                    <FileText className="h-3 w-3" /> No Deck
+                  </span>
+                )}
+              </div>
             </div>
+
             {/* Integration Badges */}
-            <div className="flex flex-wrap gap-2 mt-3">
-              {company.stripe_connected && (
-                <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a2e', color: '#818cf8' }}>
-                  <CreditCard className="h-3 w-3" /> Stripe Connected
-                </span>
-              )}
-              {company.ga4_connected && (
-                <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a2e', color: '#f59e0b' }}>
-                  <BarChart3 className="h-3 w-3" /> GA4 Connected
-                </span>
-              )}
+            <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #404040' }}>
+              <p className="text-xs text-neutral-500 w-full mb-1">Integrations</p>
+              <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{
+                background: company.stripe_connected ? '#1a1a2e' : '#1a1a1a',
+                color: company.stripe_connected ? '#818cf8' : '#525252',
+              }}>
+                <CreditCard className="h-3 w-3" /> Stripe {company.stripe_connected ? 'Connected' : 'Not Connected'}
+              </span>
+              <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{
+                background: company.ga4_connected ? '#1a1a2e' : '#1a1a1a',
+                color: company.ga4_connected ? '#f59e0b' : '#525252',
+              }}>
+                <BarChart3 className="h-3 w-3" /> GA4 {company.ga4_connected ? 'Connected' : 'Not Connected'}
+              </span>
               <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a1a', color: '#737373' }}>
                 {company.is_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
                 {company.is_visible ? 'Visible' : 'Hidden'}
               </span>
             </div>
+
+            {/* Timestamps */}
+            <div className="flex flex-wrap gap-4 mt-4 pt-4 text-xs text-neutral-500" style={{ borderTop: '1px solid #404040' }}>
+              <span>Created: {new Date(company.created_at).toLocaleString('ko-KR')}</span>
+              <span>Updated: {new Date(company.updated_at).toLocaleString('ko-KR')}</span>
+              {company.reviewed_at && <span>Reviewed: {new Date(company.reviewed_at).toLocaleString('ko-KR')}</span>}
+              {company.last_data_update && <span>Data Update: {new Date(company.last_data_update).toLocaleString('ko-KR')}</span>}
+              <span>User ID: {company.user_id.slice(0, 8)}...</span>
+            </div>
           </div>
 
           {/* Video */}
-          {mainVideo && (
-            <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Play className="h-5 w-5" /> Pitch Video
-              </h3>
-              <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                <iframe
-                  src={toEmbedUrl(mainVideo.video_url)}
-                  title="Pitch video"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-              {mainVideo.description && <p className="mt-3 text-sm text-neutral-400">{mainVideo.description}</p>}
-            </div>
-          )}
+          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Play className="h-5 w-5" /> Pitch Video
+              <span className="text-xs font-normal text-neutral-500">({company.videos?.length ?? 0})</span>
+            </h3>
+            {mainVideo ? (
+              <>
+                <div className="aspect-video rounded-lg overflow-hidden bg-black">
+                  <iframe
+                    src={toEmbedUrl(mainVideo.video_url)}
+                    title="Pitch video"
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+                <p className="mt-2 text-xs text-neutral-500 break-all">URL: {mainVideo.video_url}</p>
+                {mainVideo.description && <p className="mt-1 text-sm text-neutral-400">{mainVideo.description}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No video uploaded</p>
+            )}
+          </div>
 
           {/* About */}
           <div className="rounded-xl p-6 overflow-hidden" style={{ background: '#262626', border: '1px solid #404040' }}>
             <h3 className="text-lg font-semibold text-white mb-3">About</h3>
-            <p className="text-neutral-300 whitespace-pre-line leading-relaxed break-words overflow-wrap-anywhere" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{company.description}</p>
+            {company.description ? (
+              <p className="text-neutral-300 whitespace-pre-line leading-relaxed break-words overflow-wrap-anywhere" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{company.description}</p>
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No description</p>
+            )}
           </div>
 
           {/* Team */}
-          {company.executives && company.executives.length > 0 && (
-            <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <Users className="h-5 w-5" /> Team
-              </h3>
+          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Users className="h-5 w-5" /> Leadership Team
+              <span className="text-xs font-normal text-neutral-500">({company.executives?.length ?? 0})</span>
+            </h3>
+            {company.executives && company.executives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {company.executives.map((e) => (
-                  <div key={e.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: '#1a1a1a' }}>
-                    {e.photo_url ? (
-                      <img src={e.photo_url} alt={e.name} className="h-12 w-12 rounded-full object-cover" />
-                    ) : (
-                      <div className="h-12 w-12 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#404040', color: '#a3a3a3' }}>
-                        {e.name[0]}
+                  <div key={e.id} className="p-4 rounded-lg space-y-3" style={{ background: '#1a1a1a' }}>
+                    <div className="flex items-center gap-3">
+                      {e.photo_url ? (
+                        <img src={e.photo_url} alt={e.name} className="h-14 w-14 rounded-full object-cover" />
+                      ) : (
+                        <div className="h-14 w-14 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#404040', color: '#a3a3a3' }}>
+                          {e.name[0]}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium text-white">{e.name}</p>
+                        <p className="text-xs text-blue-400">{e.role}</p>
+                      </div>
+                    </div>
+                    {e.bio && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">Bio</p>
+                        <p className="text-xs text-neutral-400">{e.bio}</p>
                       </div>
                     )}
-                    <div>
-                      <p className="font-medium text-white">{e.name}</p>
-                      <p className="text-xs text-neutral-400">{e.role}</p>
-                      {e.bio && <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{e.bio}</p>}
+                    {e.education && (
+                      <div>
+                        <p className="text-xs text-neutral-500 mb-1">Education</p>
+                        <p className="text-xs text-neutral-400">{e.education}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      {e.linkedin_url && (
+                        <a href={e.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80" style={{ background: '#262626', color: '#60a5fa' }}>
+                          <Linkedin className="h-3 w-3" /> LinkedIn
+                        </a>
+                      )}
+                      {e.twitter_url && (
+                        <a href={e.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 rounded flex items-center gap-1 hover:opacity-80" style={{ background: '#262626', color: '#60a5fa' }}>
+                          <XIcon className="h-3 w-3" /> X
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No team members</p>
+            )}
+          </div>
 
           {/* Metrics */}
-          {company.metrics && company.metrics.length > 0 && (
-            <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" /> Business Metrics
-              </h3>
+          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" /> Business Metrics
+              <span className="text-xs font-normal text-neutral-500">({company.metrics?.length ?? 0} data points)</span>
+            </h3>
+            {company.metrics && company.metrics.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <DarkMetricChart title="Monthly Revenue" data={company.metrics} dataKey="revenue" color="#6366f1" format={(v) => `$${(v / 1000).toFixed(0)}k`} />
                 <DarkMetricChart title="MAU" data={company.metrics} dataKey="mau" color="#10b981" format={(v) => v.toLocaleString()} />
@@ -1065,13 +1222,18 @@ function CompanyDetailView({
                 <DarkMetricChart title="Sessions" data={company.metrics} dataKey="sessions" color="#34a853" format={(v) => v.toLocaleString()} />
                 <DarkMetricChart title="Conversions" data={company.metrics} dataKey="conversions" color="#ea4335" format={(v) => v.toLocaleString()} />
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No metrics data</p>
+            )}
+          </div>
 
           {/* News */}
-          {company.news && company.news.length > 0 && (
-            <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
-              <h3 className="text-lg font-semibold text-white mb-4">News</h3>
+          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <ExternalLink className="h-5 w-5" /> Company News
+              <span className="text-xs font-normal text-neutral-500">({company.news?.length ?? 0})</span>
+            </h3>
+            {company.news && company.news.length > 0 ? (
               <div className="space-y-3">
                 {company.news.map((n) => (
                   <a
@@ -1085,23 +1247,27 @@ function CompanyDetailView({
                     {n.thumbnail_url && (
                       <img src={n.thumbnail_url} alt="" className="h-16 w-24 rounded object-cover flex-shrink-0" />
                     )}
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="font-medium text-white text-sm">{n.title}</p>
                       {n.summary && <p className="text-xs text-neutral-400 mt-1 line-clamp-2">{n.summary}</p>}
+                      {n.external_link && <p className="text-xs text-blue-400 mt-1 truncate">{n.external_link}</p>}
                       <p className="text-xs text-neutral-500 mt-1">{new Date(n.published_at).toLocaleDateString('ko-KR')}</p>
                     </div>
                   </a>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No news articles</p>
+            )}
+          </div>
 
           {/* Q&A */}
-          {company.qna && company.qna.length > 0 && (
-            <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
-              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" /> Q&A
-              </h3>
+          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" /> Investor Q&A
+              <span className="text-xs font-normal text-neutral-500">({company.qna?.length ?? 0})</span>
+            </h3>
+            {company.qna && company.qna.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {company.qna.map((q) => (
                   <div key={q.id} className="p-4 rounded-lg space-y-2" style={{ background: '#1a1a1a' }}>
@@ -1113,8 +1279,10 @@ function CompanyDetailView({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-neutral-500 py-4 text-center">No Q&A entries</p>
+            )}
+          </div>
         </>
       )}
     </div>
