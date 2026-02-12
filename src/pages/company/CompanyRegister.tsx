@@ -1095,13 +1095,21 @@ export function CompanyRegister() {
                             </div>
                             <div className="space-y-2">
                               <Label required>Role</Label>
-                              <Select
-                                options={isCEO ? [{ value: 'CEO', label: 'CEO' }] : executiveRoleOptions}
-                                placeholder="Select"
-                                disabled={isCEO}
-                                error={errors.executives?.[index]?.role?.message}
-                                className="bg-background border-border"
-                                {...register(`executives.${index}.role`)}
+                              <Controller
+                                control={control}
+                                name={`executives.${index}.role`}
+                                render={({ field: roleField }) => (
+                                  <Select
+                                    options={isCEO ? [{ value: 'CEO', label: 'CEO' }] : executiveRoleOptions}
+                                    placeholder="Select"
+                                    disabled={isCEO}
+                                    error={errors.executives?.[index]?.role?.message}
+                                    className="bg-background border-border"
+                                    value={roleField.value}
+                                    onChange={(e) => roleField.onChange(e.target.value)}
+                                    name={roleField.name}
+                                  />
+                                )}
                               />
                             </div>
                           </div>

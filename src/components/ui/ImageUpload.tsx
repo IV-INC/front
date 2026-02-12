@@ -37,6 +37,16 @@ export function ImageUpload({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const withTimeout = <T,>(promise: Promise<T>, ms = 30000): Promise<T> =>
+    Promise.race([
+      promise,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timed out. Please try again.')), ms)
+      ),
+    ]);
 
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,11 +67,15 @@ export function ImageUpload({
 
       try {
         // Ensure session is valid before upload
-        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        let { data: { session }, error: sessionError } = await withTimeout(
+          supabase.auth.getSession()
+        );
 
         // If no session, try to refresh
         if (!session) {
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          const { data: refreshData, error: refreshError } = await withTimeout(
+            supabase.auth.refreshSession()
+          );
           session = refreshData.session;
           sessionError = refreshError;
         }
@@ -74,9 +88,11 @@ export function ImageUpload({
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        const { error: uploadErr } = await supabase.storage
-          .from(bucket)
-          .upload(fileName, file, { upsert: true });
+        const { error: uploadErr } = await withTimeout(
+          supabase.storage
+            .from(bucket)
+            .upload(fileName, file, { upsert: true })
+        );
 
         if (uploadErr) {
           setUploadError(`Upload failed: ${uploadErr.message}`);
@@ -84,7 +100,7 @@ export function ImageUpload({
         }
 
         const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-        onChange(data.publicUrl);
+        onChangeRef.current(data.publicUrl);
       } catch (err) {
         console.error('Image upload error:', err);
         setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
@@ -92,7 +108,7 @@ export function ImageUpload({
         setUploading(false);
       }
     },
-    [bucket, path, onChange]
+    [bucket, path]
   );
 
   const handleRemove = useCallback(() => {
