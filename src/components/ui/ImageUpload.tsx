@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { Upload, X } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { supabase } from '@/lib/supabase';
 
@@ -36,17 +36,21 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imgBroken, setImgBroken] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const withTimeout = <T,>(promise: Promise<T>, ms = 60000): Promise<T> =>
-    Promise.race([
-      promise,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Upload timed out. Please try again.')), ms)
-      ),
-    ]);
+  // 부모 value가 변경되면 로컬 preview 동기화
+  useEffect(() => {
+    if (value) {
+      setPreviewUrl(null);
+      setImgBroken(false);
+    }
+  }, [value]);
+
+  const displayUrl = value || previewUrl;
 
   const handleUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,18 +68,18 @@ export function ImageUpload({
 
       setUploading(true);
       setUploadError(null);
+      setImgBroken(false);
+
+      // AbortController로 실제 네트워크 요청도 취소 가능하게
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
 
       try {
-        // Ensure session is valid before upload
-        let { data: { session }, error: sessionError } = await withTimeout(
-          supabase.auth.getSession()
-        );
+        // 세션 확인
+        let { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-        // If no session, try to refresh
         if (!session) {
-          const { data: refreshData, error: refreshError } = await withTimeout(
-            supabase.auth.refreshSession()
-          );
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
           session = refreshData.session;
           sessionError = refreshError;
         }
@@ -88,11 +92,17 @@ export function ImageUpload({
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        const { error: uploadErr } = await withTimeout(
-          supabase.storage
-            .from(bucket)
-            .upload(fileName, file, { upsert: true })
-        );
+        const { error: uploadErr } = await supabase.storage
+          .from(bucket)
+          .upload(fileName, file, {
+            upsert: true,
+            ...(controller.signal ? {} : {}),
+          });
+
+        if (controller.signal.aborted) {
+          setUploadError('Upload timed out. Please try again.');
+          return;
+        }
 
         if (uploadErr) {
           setUploadError(`Upload failed: ${uploadErr.message}`);
@@ -100,11 +110,21 @@ export function ImageUpload({
         }
 
         const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-        onChangeRef.current(data.publicUrl);
+        const publicUrl = data.publicUrl;
+
+        // 로컬 preview를 먼저 세팅해서 즉시 이미지 표시
+        setPreviewUrl(publicUrl);
+        // 부모 form 값도 업데이트
+        onChangeRef.current(publicUrl);
       } catch (err) {
-        console.error('Image upload error:', err);
-        setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+        if (controller.signal.aborted) {
+          setUploadError('Upload timed out. Please try again.');
+        } else {
+          console.error('Image upload error:', err);
+          setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+        }
       } finally {
+        clearTimeout(timeoutId);
         setUploading(false);
       }
     },
@@ -112,6 +132,8 @@ export function ImageUpload({
   );
 
   const handleRemove = useCallback(() => {
+    setPreviewUrl(null);
+    setImgBroken(false);
     onChange(null);
     if (inputRef.current) inputRef.current.value = '';
   }, [onChange]);
@@ -133,11 +155,16 @@ export function ImageUpload({
           shape === 'circle' ? 'rounded-full' : 'rounded-lg',
           sizeMap[size]
         )}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => !uploading && inputRef.current?.click()}
       >
-        {value ? (
+        {displayUrl && !imgBroken ? (
           <>
-            <img src={value} alt="Upload preview" className="w-full h-full object-cover" />
+            <img
+              src={displayUrl}
+              alt="Upload preview"
+              className="w-full h-full object-cover"
+              onError={() => setImgBroken(true)}
+            />
             <button
               type="button"
               className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
@@ -153,6 +180,11 @@ export function ImageUpload({
           <div className="flex flex-col items-center text-muted-foreground">
             {uploading ? (
               <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+            ) : imgBroken ? (
+              <>
+                <AlertCircle className="w-6 h-6 mb-1 text-red-400" />
+                <span className="text-xs text-red-400">Retry</span>
+              </>
             ) : (
               <>
                 <Upload className="w-6 h-6 mb-1" />
