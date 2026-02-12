@@ -22,6 +22,8 @@ const sizeMap = {
   lg: 'w-40 h-40',
 };
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+
 export function ImageUpload({
   label,
   error,
@@ -71,47 +73,91 @@ export function ImageUpload({
       setImgBroken(false);
 
       try {
+        // 로컬 스토리지에서 직접 토큰 읽기 (SDK auth lock 우회)
+        let accessToken: string | null = null;
+        try {
+          const storageKey = Object.keys(localStorage).find(
+            (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
+          );
+          if (storageKey) {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              accessToken = parsed?.access_token || null;
+            }
+          }
+        } catch {
+          // localStorage 파싱 실패 → SDK fallback
+        }
+
+        // 로컬 스토리지에서 토큰을 못 찾으면 SDK에서 가져오기 (5초 타임아웃)
+        if (!accessToken) {
+          try {
+            const sessionResult = await Promise.race([
+              supabase.auth.getSession(),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('timeout')), 5000),
+              ),
+            ]);
+            accessToken = sessionResult.data.session?.access_token || null;
+          } catch {
+            // SDK도 hang → 토큰 없이 진행 (서버가 에러 반환)
+          }
+        }
+
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        // 파일 업로드 (30초 타임아웃) — 세션이 없으면 Supabase가 자체 auth 에러 반환
-        const uploadPromise = supabase.storage
-          .from(bucket)
-          .upload(fileName, file, { upsert: true });
+        // fetch로 직접 Supabase Storage REST API 호출
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const result = await Promise.race([
-          uploadPromise,
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Upload timed out. Please try again.')), 30000),
-          ),
-        ]);
+        const headers: Record<string, string> = {
+          'x-upsert': 'true',
+        };
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
 
-        if (result.error) {
-          // 인증 관련 에러 메시지 변환
-          const msg = result.error.message;
-          if (msg.includes('auth') || msg.includes('JWT') || msg.includes('token') || msg.includes('policy')) {
+        const response = await fetch(
+          `${SUPABASE_URL}/storage/v1/object/${bucket}/${fileName}`,
+          {
+            method: 'POST',
+            headers,
+            body: file,
+            signal: controller.signal,
+          },
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const body = await response.text().catch(() => '');
+          if (response.status === 401 || response.status === 403) {
             setUploadError('Please log in again to upload.');
           } else {
-            setUploadError(`Upload failed: ${msg}`);
+            setUploadError(`Upload failed (${response.status}): ${body || response.statusText}`);
           }
+          setUploading(false);
           return;
         }
 
-        const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-        const publicUrl = data.publicUrl;
-
-        // 로컬 preview를 먼저 세팅해서 즉시 이미지 표시
+        // public URL 생성
+        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${fileName}`;
         setPreviewUrl(publicUrl);
-        // 부모 form 값도 업데이트
         onChangeRef.current(publicUrl);
       } catch (err) {
         console.error('Image upload error:', err);
-        setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          setUploadError('Upload timed out. Please try again.');
+        } else {
+          setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
+        }
       } finally {
         setUploading(false);
       }
     },
-    [bucket, path]
+    [bucket, path],
   );
 
   const handleRemove = useCallback(() => {
@@ -136,7 +182,7 @@ export function ImageUpload({
           'relative border-2 border-dashed flex items-center justify-center cursor-pointer overflow-hidden bg-background hover:bg-accent transition-colors',
           displayError ? 'border-red-400' : 'border-border',
           shape === 'circle' ? 'rounded-full' : 'rounded-lg',
-          sizeMap[size]
+          sizeMap[size],
         )}
         onClick={() => !uploading && inputRef.current?.click()}
       >
