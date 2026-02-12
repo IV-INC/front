@@ -469,21 +469,19 @@ export function CompanyEdit() {
         return;
       }
 
-      // 1. 세션 검증
+      // 1. 세션 검증 (로컬 캐시 → 네트워크 호출 불필요)
       setSubmitStatus('Verifying session...');
-      const { data: { user: validatedUser }, error: userError } = await withRetry(
-        () => supabase.auth.getUser(),
-        { label: 'Session verification' },
-      );
-      if (userError || !validatedUser) {
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         const { data: refreshData } = await withRetry(
           () => supabase.auth.refreshSession(),
-          { label: 'Session refresh' },
+          { retries: 1, label: 'Session refresh' },
         );
-        if (!refreshData.session) {
-          setSubmitError('Session expired. Please log in again.');
-          return;
-        }
+        session = refreshData.session;
+      }
+      if (!session) {
+        setSubmitError('Session expired. Please log in again.');
+        return;
       }
 
       // 2. 회사 정보 업데이트
