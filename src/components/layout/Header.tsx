@@ -97,12 +97,14 @@ export function Header() {
                 Complete Setup
               </Link>
             )}
-            <Link
-              to="/register/company"
-              className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Apply
-            </Link>
+            {role !== 'investor' && (
+              <Link
+                to={role === 'startup' ? '/company/register' : '/register/company'}
+                className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                Apply
+              </Link>
+            )}
             <div className="flex items-center gap-3 ml-4">
               <span className="text-sm text-muted-foreground">{profile?.full_name || user.email}</span>
               <Button variant="ghost" size="sm" onClick={handleLogout}>

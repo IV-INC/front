@@ -24,6 +24,9 @@ import {
   Trash2,
   Pencil,
   Save,
+  Linkedin,
+  Youtube,
+  FileText,
 } from 'lucide-react';
 import {
   LineChart,
@@ -47,6 +50,28 @@ import type {
   CompanyStage,
   ApprovalStatus,
 } from '@/types/database';
+
+// X (Twitter) icon
+const XIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+/** Convert a video URL to an embeddable URL */
+function toEmbedUrl(url: string): string {
+  if (url.includes('youtube.com/watch?v=')) {
+    return url.replace('watch?v=', 'embed/').split('&')[0];
+  }
+  if (url.includes('youtu.be/')) {
+    const id = url.split('youtu.be/')[1]?.split('?')[0];
+    return id ? `https://www.youtube.com/embed/${id}` : url;
+  }
+  if (url.includes('vimeo.com') && !url.includes('player.vimeo.com')) {
+    return url.replace('vimeo.com', 'player.vimeo.com/video');
+  }
+  return url;
+}
 
 type TabStatus = 'pending' | 'approved' | 'paid' | 'rejected';
 
@@ -937,9 +962,41 @@ function CompanyDetailView({
               )}
               {company.linkedin_url && (
                 <a href={company.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
-                  <ExternalLink className="h-3 w-3" /> LinkedIn
+                  <Linkedin className="h-3 w-3" /> LinkedIn
                 </a>
               )}
+              {company.twitter_url && (
+                <a href={company.twitter_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                  <XIcon className="h-3 w-3" /> X
+                </a>
+              )}
+              {company.youtube_url && (
+                <a href={company.youtube_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                  <Youtube className="h-3 w-3" /> YouTube
+                </a>
+              )}
+              {company.deck_url && (
+                <a href={company.deck_url} target="_blank" rel="noopener noreferrer" className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 hover:opacity-80" style={{ background: '#404040', color: '#e5e5e5' }}>
+                  <FileText className="h-3 w-3" /> IR Deck
+                </a>
+              )}
+            </div>
+            {/* Integration Badges */}
+            <div className="flex flex-wrap gap-2 mt-3">
+              {company.stripe_connected && (
+                <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a2e', color: '#818cf8' }}>
+                  <CreditCard className="h-3 w-3" /> Stripe Connected
+                </span>
+              )}
+              {company.ga4_connected && (
+                <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a2e', color: '#f59e0b' }}>
+                  <BarChart3 className="h-3 w-3" /> GA4 Connected
+                </span>
+              )}
+              <span className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: '#1a1a1a', color: '#737373' }}>
+                {company.is_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                {company.is_visible ? 'Visible' : 'Hidden'}
+              </span>
             </div>
           </div>
 
@@ -950,16 +1007,22 @@ function CompanyDetailView({
                 <Play className="h-5 w-5" /> Pitch Video
               </h3>
               <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                <iframe src={mainVideo.video_url} title="Pitch video" className="w-full h-full" allowFullScreen />
+                <iframe
+                  src={toEmbedUrl(mainVideo.video_url)}
+                  title="Pitch video"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
               </div>
               {mainVideo.description && <p className="mt-3 text-sm text-neutral-400">{mainVideo.description}</p>}
             </div>
           )}
 
           {/* About */}
-          <div className="rounded-xl p-6" style={{ background: '#262626', border: '1px solid #404040' }}>
+          <div className="rounded-xl p-6 overflow-hidden" style={{ background: '#262626', border: '1px solid #404040' }}>
             <h3 className="text-lg font-semibold text-white mb-3">About</h3>
-            <p className="text-neutral-300 whitespace-pre-line leading-relaxed">{company.description}</p>
+            <p className="text-neutral-300 whitespace-pre-line leading-relaxed break-words overflow-wrap-anywhere" style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{company.description}</p>
           </div>
 
           {/* Team */}

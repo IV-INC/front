@@ -40,6 +40,21 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+/** Convert a video URL to an embeddable URL */
+function toEmbedUrl(url: string): string {
+  if (url.includes('youtube.com/watch?v=')) {
+    return url.replace('watch?v=', 'embed/').split('&')[0];
+  }
+  if (url.includes('youtu.be/')) {
+    const id = url.split('youtu.be/')[1]?.split('?')[0];
+    return id ? `https://www.youtube.com/embed/${id}` : url;
+  }
+  if (url.includes('vimeo.com') && !url.includes('player.vimeo.com')) {
+    return url.replace('vimeo.com', 'player.vimeo.com/video');
+  }
+  return url;
+}
+
 export function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
   const [company, setCompany] = useState<Company | null>(null);
@@ -181,9 +196,10 @@ export function CompanyDetail() {
           </h2>
           <div className="aspect-video rounded-2xl overflow-hidden bg-secondary max-w-4xl">
             <iframe
-              src={mainVideo.video_url}
+              src={toEmbedUrl(mainVideo.video_url)}
               title="Company Introduction"
               className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
             />
           </div>
@@ -281,7 +297,13 @@ export function CompanyDetail() {
               <Card key={v.id}>
                 <CardContent className="p-6">
                   <div className="aspect-video rounded-lg overflow-hidden bg-black">
-                    <iframe src={v.video_url} title="Video" className="w-full h-full" allowFullScreen />
+                    <iframe
+                      src={toEmbedUrl(v.video_url)}
+                      title="Video"
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
                   </div>
                   {v.description && (
                     <p className="mt-3 text-sm text-muted-foreground">{v.description}</p>
