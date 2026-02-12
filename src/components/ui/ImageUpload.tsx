@@ -22,8 +22,6 @@ const sizeMap = {
   lg: 'w-40 h-40',
 };
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-
 export function ImageUpload({
   label,
   error,
@@ -44,7 +42,6 @@ export function ImageUpload({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // 부모 value가 변경되면 로컬 preview 동기화
   useEffect(() => {
     if (value) {
       setPreviewUrl(null);
@@ -73,86 +70,24 @@ export function ImageUpload({
       setImgBroken(false);
 
       try {
-        // 로컬 스토리지에서 직접 토큰 읽기 (SDK auth lock 우회)
-        let accessToken: string | null = null;
-        try {
-          const storageKey = Object.keys(localStorage).find(
-            (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
-          );
-          if (storageKey) {
-            const raw = localStorage.getItem(storageKey);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              accessToken = parsed?.access_token || null;
-            }
-          }
-        } catch {
-          // localStorage 파싱 실패 → SDK fallback
-        }
-
-        // 로컬 스토리지에서 토큰을 못 찾으면 SDK에서 가져오기 (5초 타임아웃)
-        if (!accessToken) {
-          try {
-            const sessionResult = await Promise.race([
-              supabase.auth.getSession(),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('timeout')), 5000),
-              ),
-            ]);
-            accessToken = sessionResult.data.session?.access_token || null;
-          } catch {
-            // SDK도 hang → 토큰 없이 진행 (서버가 에러 반환)
-          }
-        }
-
         const ext = file.name.split('.').pop();
         const fileName = `${path}/${crypto.randomUUID()}.${ext}`;
 
-        // fetch로 직접 Supabase Storage REST API 호출
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const { error: uploadErr } = await supabase.storage
+          .from(bucket)
+          .upload(fileName, file, { upsert: true });
 
-        const headers: Record<string, string> = {
-          'x-upsert': 'true',
-        };
-        if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`;
-        }
-
-        const response = await fetch(
-          `${SUPABASE_URL}/storage/v1/object/${bucket}/${fileName}`,
-          {
-            method: 'POST',
-            headers,
-            body: file,
-            signal: controller.signal,
-          },
-        );
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          const body = await response.text().catch(() => '');
-          if (response.status === 401 || response.status === 403) {
-            setUploadError('Please log in again to upload.');
-          } else {
-            setUploadError(`Upload failed (${response.status}): ${body || response.statusText}`);
-          }
-          setUploading(false);
+        if (uploadErr) {
+          setUploadError(`Upload failed: ${uploadErr.message}`);
           return;
         }
 
-        // public URL 생성
-        const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${fileName}`;
-        setPreviewUrl(publicUrl);
-        onChangeRef.current(publicUrl);
+        const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
+        setPreviewUrl(data.publicUrl);
+        onChangeRef.current(data.publicUrl);
       } catch (err) {
         console.error('Image upload error:', err);
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          setUploadError('Upload timed out. Please try again.');
-        } else {
-          setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
-        }
+        setUploadError(err instanceof Error ? err.message : 'Upload failed. Please try again.');
       } finally {
         setUploading(false);
       }

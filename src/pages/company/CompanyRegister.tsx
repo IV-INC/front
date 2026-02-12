@@ -468,29 +468,9 @@ export function CompanyRegister() {
         return;
       }
 
-      // 1. 세션 검증 — getSession()도 내부적으로 토큰 갱신 시도하므로 타임아웃 적용
+      // 1. 세션 검증
       setSubmitStatus('Verifying session...');
-      let session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'] = null;
-      try {
-        const res = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
-        ]);
-        session = res.data.session;
-      } catch {
-        // getSession 타임아웃 → 세션 없이 계속 진행 (DB 호출에서 auth 에러 발생 시 처리)
-      }
-      if (!session) {
-        try {
-          const refreshRes = await Promise.race([
-            supabase.auth.refreshSession(),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
-          ]);
-          session = refreshRes.data.session;
-        } catch {
-          // refresh도 실패
-        }
-      }
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setSubmitError('Session expired. Please log in again.');
         return;
