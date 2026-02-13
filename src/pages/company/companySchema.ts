@@ -52,6 +52,7 @@ export const executiveSchema = z.object({
   linkedin_url: z.string().url('Please enter a valid URL').or(z.literal('')).optional(),
   twitter_url: z.string().url('Please enter a valid URL').or(z.literal('')).optional(),
   education: z.string().optional(),
+  major: z.string().optional(),
 });
 
 export const companyRegisterSchema = z.object({
@@ -101,4 +102,5 @@ export const defaultExecutive = (role: string = 'CEO') => ({
   linkedin_url: '',
   twitter_url: '',
   education: '',
+  major: '',
 });

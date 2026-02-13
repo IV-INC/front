@@ -271,15 +271,19 @@ export function CompanyEdit() {
           twitter_url: companyData.twitter_url || '',
           youtube_url: companyData.youtube_url || '',
           executives: executives.length > 0
-            ? executives.map((e) => ({
-                name: e.name,
-                role: e.role as CompanyRegisterForm['executives'][number]['role'],
-                photo_url: e.photo_url || null,
-                bio: e.bio || '',
-                linkedin_url: e.linkedin_url || '',
-                twitter_url: e.twitter_url || '',
-                education: e.education || '',
-              }))
+            ? executives.map((e) => {
+                const parts = (e.education || '').split(' | ');
+                return {
+                  name: e.name,
+                  role: e.role as CompanyRegisterForm['executives'][number]['role'],
+                  photo_url: e.photo_url || null,
+                  bio: e.bio || '',
+                  linkedin_url: e.linkedin_url || '',
+                  twitter_url: e.twitter_url || '',
+                  education: parts[0] || '',
+                  major: parts[1] || '',
+                };
+              })
             : [defaultExecutive('CEO')],
           intro_video_url: mainVideo?.video_url || '',
         });
@@ -470,16 +474,21 @@ export function CompanyEdit() {
       setSubmitStatus('Updating leadership team...');
       await supabase.from('executives').delete().eq('company_id', company.id);
 
-      const executives = data.executives.map((exec) => ({
-        company_id: company.id,
-        name: exec.name,
-        role: exec.role,
-        photo_url: exec.photo_url || null,
-        bio: exec.bio || null,
-        linkedin_url: exec.linkedin_url || null,
-        twitter_url: exec.twitter_url || null,
-        education: exec.education || null,
-      }));
+      const executives = data.executives.map((exec) => {
+        const school = exec.education?.trim() || '';
+        const major = exec.major?.trim() || '';
+        const education = school && major ? `${school} | ${major}` : school || major || null;
+        return {
+          company_id: company.id,
+          name: exec.name,
+          role: exec.role,
+          photo_url: exec.photo_url || null,
+          bio: exec.bio || null,
+          linkedin_url: exec.linkedin_url || null,
+          twitter_url: exec.twitter_url || null,
+          education,
+        };
+      });
 
       const { error: insertExecError } = await supabase.from('executives').insert(executives);
       if (insertExecError) {
@@ -953,13 +962,21 @@ export function CompanyEdit() {
                         />
                       </div>
 
-                      <div className="grid sm:grid-cols-2 gap-4">
+                      <div className="grid sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label>Education</Label>
+                          <Label className="flex items-center gap-2">🎓 Education</Label>
                           <Input
-                            placeholder="e.g. Stanford University, CS"
+                            placeholder="e.g. Stanford University"
                             className="bg-background border-border"
                             {...register(`executives.${index}.education`)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">📚 Major</Label>
+                          <Input
+                            placeholder="e.g. Computer Science"
+                            className="bg-background border-border"
+                            {...register(`executives.${index}.major`)}
                           />
                         </div>
                         <div className="space-y-2">
@@ -1403,7 +1420,7 @@ export function CompanyEdit() {
                           <a href={news.external_link} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline mt-1 block truncate">{news.external_link}</a>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(news.published_at).toLocaleDateString()}
+                          {news.published_at.slice(0, 7)}
                         </p>
                       </div>
                       <Button
@@ -1461,12 +1478,53 @@ export function CompanyEdit() {
                           </div>
                           <div className="space-y-2">
                             <Label>Date</Label>
-                            <Input
-                              type="date"
-                              value={item.date}
-                              onChange={(e) => setNewNewsItems((prev) => prev.map((n, i) => i === idx ? { ...n, date: e.target.value } : n))}
-                              className="bg-background border-border"
-                            />
+                            <div className="flex items-center gap-1 h-9 w-full rounded-md border border-input bg-background px-3 shadow-xs focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="MM"
+                                value={(() => { const p = (item.date || '').split('-'); return p[1] || ''; })()}
+                                onChange={(e) => {
+                                  const num = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                  const p = (item.date || '').split('-');
+                                  const y = p[0] || '';
+                                  const val = !y && !num ? '' : `${y}-${num}`;
+                                  setNewNewsItems((prev) => prev.map((n, i) => i === idx ? { ...n, date: val } : n));
+                                }}
+                                onBlur={() => {
+                                  const p = (item.date || '').split('-');
+                                  const y = p[0] || '';
+                                  const m = p[1] || '';
+                                  if (m && parseInt(m) >= 1 && parseInt(m) <= 12) {
+                                    const val = `${y}-${m.padStart(2, '0')}`;
+                                    setNewNewsItems((prev) => prev.map((n, i) => i === idx ? { ...n, date: val } : n));
+                                  } else if (m && (parseInt(m) < 1 || parseInt(m) > 12)) {
+                                    const val = y ? `${y}-` : '';
+                                    setNewNewsItems((prev) => prev.map((n, i) => i === idx ? { ...n, date: val } : n));
+                                  }
+                                }}
+                                className="w-8 bg-transparent text-sm text-center outline-none"
+                                maxLength={2}
+                              />
+                              <span className="text-sm text-muted-foreground">m</span>
+                              <span className="text-sm text-muted-foreground mx-1">/</span>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="YYYY"
+                                value={(() => { const p = (item.date || '').split('-'); return p[0] || ''; })()}
+                                onChange={(e) => {
+                                  const num = e.target.value.replace(/\D/g, '').slice(0, 4);
+                                  const p = (item.date || '').split('-');
+                                  const m = p[1] || '';
+                                  const val = !num && !m ? '' : `${num}-${m}`;
+                                  setNewNewsItems((prev) => prev.map((n, i) => i === idx ? { ...n, date: val } : n));
+                                }}
+                                className="w-12 bg-transparent text-sm text-center outline-none"
+                                maxLength={4}
+                              />
+                              <span className="text-sm text-muted-foreground">y</span>
+                            </div>
                           </div>
                         </div>
                       </div>

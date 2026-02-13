@@ -1304,7 +1304,7 @@ function CompanyDetailView({
                       <p className="font-medium text-white text-sm">{n.title}</p>
                       {n.summary && <p className="text-xs text-neutral-400 mt-1 line-clamp-2">{n.summary}</p>}
                       {n.external_link && <p className="text-xs text-blue-400 mt-1 truncate">{n.external_link}</p>}
-                      <p className="text-xs text-neutral-500 mt-1">{new Date(n.published_at).toLocaleDateString('ko-KR')}</p>
+                      <p className="text-xs text-neutral-500 mt-1">{n.published_at.slice(0, 7)}</p>
                     </div>
                   </a>
                 ))}
