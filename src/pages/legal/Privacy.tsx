@@ -35,13 +35,13 @@ export function Privacy() {
           <h2 className="text-xl font-semibold text-white">B. Your Rights Related to Your Personal Data</h2>
           <p>You have certain rights regarding your personal data, subject to applicable laws:</p>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-blue-400">Access:</strong> Request confirmation of processing and a copy of your data.</li>
-            <li><strong className="text-blue-400">Correction:</strong> Request correction of inaccurate data.</li>
-            <li><strong className="text-blue-400">Deletion:</strong> Request deletion of your data, though IV may retain anonymized/aggregated versions for internal use or as required by law.</li>
-            <li><strong className="text-blue-400">Opt-Out of Sale/Sharing:</strong> IV does not "sell" personal data under applicable definitions.</li>
-            <li><strong className="text-blue-400">Portability:</strong> Request transfer of your data in a structured format, where technically feasible.</li>
-            <li><strong className="text-blue-400">Restriction/Objection:</strong> Object to processing for direct marketing or request restrictions.</li>
-            <li><strong className="text-blue-400">Withdraw Consent:</strong> Withdraw consent at any time (e.g., revoke OAuth for Stripe/GA4), but this may limit or terminate Services.</li>
+            <li><strong className="text-white">Access:</strong> Request confirmation of processing and a copy of your data.</li>
+            <li><strong className="text-white">Correction:</strong> Request correction of inaccurate data.</li>
+            <li><strong className="text-white">Deletion:</strong> Request deletion of your data, though IV may retain anonymized/aggregated versions for internal use or as required by law.</li>
+            <li><strong className="text-white">Opt-Out of Sale/Sharing:</strong> IV does not "sell" personal data under applicable definitions.</li>
+            <li><strong className="text-white">Portability:</strong> Request transfer of your data in a structured format, where technically feasible.</li>
+            <li><strong className="text-white">Restriction/Objection:</strong> Object to processing for direct marketing or request restrictions.</li>
+            <li><strong className="text-white">Withdraw Consent:</strong> Withdraw consent at any time (e.g., revoke OAuth for Stripe/GA4), but this may limit or terminate Services.</li>
           </ul>
           <p>
             To exercise rights, email{' '}
@@ -64,14 +64,14 @@ export function Privacy() {
 
           <h3 className="text-lg font-semibold text-white">Information You Directly Provide</h3>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-blue-400">Identity Data:</strong> first name, last name, username, password, title, date of birth, gender, profile photo.</li>
-            <li><strong className="text-blue-400">Contact Data:</strong> email address, home address, work address, billing address, phone number.</li>
-            <li><strong className="text-blue-400">Professional / Company Profile Data:</strong> educational and professional history, company pitch deck, company logo, employee count, category, company stage, company links (Website, GitHub, X, LinkedIn, YouTube); C-level team details; 5-minute intro video; Investor Q&A; Google GA4 connection/data.</li>
-            <li><strong className="text-blue-400">Online Presence Data:</strong> links to public social media profiles, personal websites, company links.</li>
-            <li><strong className="text-blue-400">Financial Data:</strong> bank account details, payment card details, and Stripe connection/data (where applicable).</li>
-            <li><strong className="text-blue-400">Transaction Data:</strong> details of payments and subscriptions.</li>
-            <li><strong className="text-blue-400">Content Data:</strong> any content you post to the Services and related metadata.</li>
-            <li><strong className="text-blue-400">Marketing & Communications Data:</strong> your preferences for receiving marketing and communication content.</li>
+            <li><strong className="text-white">Identity Data:</strong> first name, last name, username, password, title, date of birth, gender, profile photo.</li>
+            <li><strong className="text-white">Contact Data:</strong> email address, home address, work address, billing address, phone number.</li>
+            <li><strong className="text-white">Professional / Company Profile Data:</strong> educational and professional history, company pitch deck, company logo, employee count, category, company stage, company links (Website, GitHub, X, LinkedIn, YouTube); C-level team details; 5-minute intro video; Investor Q&A; Google GA4 connection/data.</li>
+            <li><strong className="text-white">Online Presence Data:</strong> links to public social media profiles, personal websites, company links.</li>
+            <li><strong className="text-white">Financial Data:</strong> bank account details, payment card details, and Stripe connection/data (where applicable).</li>
+            <li><strong className="text-white">Transaction Data:</strong> details of payments and subscriptions.</li>
+            <li><strong className="text-white">Content Data:</strong> any content you post to the Services and related metadata.</li>
+            <li><strong className="text-white">Marketing & Communications Data:</strong> your preferences for receiving marketing and communication content.</li>
           </ul>
 
           <h3 className="text-lg font-semibold text-white">Personal Data from Third Party Sources</h3>
@@ -86,13 +86,13 @@ export function Privacy() {
           <h2 className="text-xl font-semibold text-white">E. How and Why We Use Your Personal Data</h2>
           <p>IV uses your personal data solely for legitimate, operational purposes:</p>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-blue-400">Service Delivery:</strong> Processing company registrations, displaying profiles in Member grids, generating graphs from data.</li>
-            <li><strong className="text-blue-400">Internal Operations:</strong> Aggregate anonymized data for trends, debugging, and service improvements.</li>
-            <li><strong className="text-blue-400">Security:</strong> Tokenization/encryption under SHIELD Act to protect against breaches.</li>
-            <li><strong className="text-blue-400">Legal Compliance:</strong> Respond to subpoenas or audits as required by law.</li>
-            <li><strong className="text-blue-400">Research & Development:</strong> Refine Services through anonymized usage patterns.</li>
-            <li><strong className="text-blue-400">Communication:</strong> Essential alerts such as approval notices or security updates.</li>
-            <li><strong className="text-blue-400">Customer Support:</strong> Address queries or fix issues.</li>
+            <li><strong className="text-white">Service Delivery:</strong> Processing company registrations, displaying profiles in Member grids, generating graphs from data.</li>
+            <li><strong className="text-white">Internal Operations:</strong> Aggregate anonymized data for trends, debugging, and service improvements.</li>
+            <li><strong className="text-white">Security:</strong> Tokenization/encryption under SHIELD Act to protect against breaches.</li>
+            <li><strong className="text-white">Legal Compliance:</strong> Respond to subpoenas or audits as required by law.</li>
+            <li><strong className="text-white">Research & Development:</strong> Refine Services through anonymized usage patterns.</li>
+            <li><strong className="text-white">Communication:</strong> Essential alerts such as approval notices or security updates.</li>
+            <li><strong className="text-white">Customer Support:</strong> Address queries or fix issues.</li>
           </ul>
 
           {/* F. Cookies */}
@@ -111,12 +111,12 @@ export function Privacy() {
           <h2 className="text-xl font-semibold text-white">G. Who We Share Your Personal Data With</h2>
           <p>Sharing is strictly limited to operational necessities:</p>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-blue-400">Service Providers/Processors:</strong> Trusted vendors like Supabase (secure, tokenized storage), Stripe (read-only data integrations), or Google (GA4).</li>
-            <li><strong className="text-blue-400">Legal/Regulatory:</strong> Shared with authorities if required by law (e.g., subpoenas, SHIELD Act breach reports).</li>
-            <li><strong className="text-blue-400">Business Transfers:</strong> In mergers/acquisitions, data may transfer.</li>
-            <li><strong className="text-blue-400">No Sales or Broad Sharing:</strong> IV does not sell, rent, or broadly share personal data.</li>
-            <li><strong className="text-blue-400">Professional Advisers:</strong> For legal/compliance support.</li>
-            <li><strong className="text-blue-400">API Users/Business Partners:</strong> For authorized integrations (e.g., Stripe/GA4 metrics).</li>
+            <li><strong className="text-white">Service Providers/Processors:</strong> Trusted vendors like Supabase (secure, tokenized storage), Stripe (read-only data integrations), or Google (GA4).</li>
+            <li><strong className="text-white">Legal/Regulatory:</strong> Shared with authorities if required by law (e.g., subpoenas, SHIELD Act breach reports).</li>
+            <li><strong className="text-white">Business Transfers:</strong> In mergers/acquisitions, data may transfer.</li>
+            <li><strong className="text-white">No Sales or Broad Sharing:</strong> IV does not sell, rent, or broadly share personal data.</li>
+            <li><strong className="text-white">Professional Advisers:</strong> For legal/compliance support.</li>
+            <li><strong className="text-white">API Users/Business Partners:</strong> For authorized integrations (e.g., Stripe/GA4 metrics).</li>
           </ul>
 
           {/* H. Retention */}
@@ -172,7 +172,7 @@ export function Privacy() {
           <h2 className="text-xl font-semibold text-white">Related Policies</h2>
           <ul className="list-disc list-inside space-y-1">
             <li><Link to="/terms" className="text-primary-400 hover:underline">Terms of Service</Link></li>
-            <li><Link to="/copyright" className="text-primary-400 hover:underline">Copyright Dispute Policy</Link></li>
+            <li><Link to="/copyright" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Copyright Dispute Policy</Link></li>
             <li><Link to="/dpa" className="text-primary-400 hover:underline">Data Processing Addendum (DPA)</Link></li>
           </ul>
 

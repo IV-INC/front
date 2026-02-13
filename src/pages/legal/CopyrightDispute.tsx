@@ -33,7 +33,7 @@ export function CopyrightDispute() {
           <h3 className="text-lg font-semibold text-white">Other</h3>
           <p>
             Company introduction video (optional; user must confirm copyright), company news (optional), executive names/emails (optional; subject to{' '}
-            <Link to="/privacy" className="text-primary-400 hover:underline">Privacy and Cookies Policy</Link>).
+            <Link to="/privacy" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Privacy and Cookies Policy</Link>).
           </p>
 
           <h3 className="text-lg font-semibold text-white">Integrated Data Visualizations</h3>
@@ -90,7 +90,7 @@ export function CopyrightDispute() {
           <h2 className="text-xl font-semibold text-white">Related Policies</h2>
           <ul className="list-disc list-inside space-y-1">
             <li><Link to="/terms" className="text-primary-400 hover:underline">Terms of Service</Link></li>
-            <li><Link to="/privacy" className="text-primary-400 hover:underline">Privacy and Cookies Policy</Link></li>
+            <li><Link to="/privacy" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Privacy and Cookies Policy</Link></li>
             <li><Link to="/dpa" className="text-primary-400 hover:underline">Data Processing Addendum (DPA)</Link></li>
           </ul>
         </div>

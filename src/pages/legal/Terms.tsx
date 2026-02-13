@@ -17,8 +17,8 @@ export function Terms() {
           </p>
           <p>
             These Terms of Service ("Terms") are a legally binding contract between you and IV ("IV," "we," "us," or "our"). You must agree to and accept all of these Terms to use the Services. By accessing or using the Services in any way, you agree to these Terms, and they will remain in effect while you use the Services. These Terms include the provisions in this document, as well as our{' '}
-            <Link to="/privacy" className="text-primary-400 hover:underline">Privacy and Cookies Policy</Link> and{' '}
-            <Link to="/copyright" className="text-primary-400 hover:underline">Copyright Dispute Policy</Link>{' '}
+            <Link to="/privacy" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Privacy and Cookies Policy</Link> and{' '}
+            <Link to="/copyright" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Copyright Dispute Policy</Link>{' '}
             (collectively, the "Additional Policies"), which are incorporated by reference.
           </p>
 
@@ -34,10 +34,10 @@ export function Terms() {
             <li>Through in-app notifications, dashboard alerts, or other prominent means in the Services</li>
           </ul>
           <p>
-            For <strong className="text-blue-400">non-material changes</strong>, the updated Terms become effective immediately upon posting.
+            For <strong className="text-white">non-material changes</strong>, the updated Terms become effective immediately upon posting.
           </p>
           <p>
-            For <strong className="text-blue-400">material changes</strong> (such as significant reductions in functionality, new fees, material expansions in data usage rights, or other changes that substantially affect your rights or obligations), we will provide <strong className="text-blue-400">reasonable advance notice</strong> — at least 30 days before the changes take effect (or longer if required by applicable law).
+            For <strong className="text-white">material changes</strong> (such as significant reductions in functionality, new fees, material expansions in data usage rights, or other changes that substantially affect your rights or obligations), we will provide <strong className="text-white">reasonable advance notice</strong> — at least 30 days before the changes take effect (or longer if required by applicable law).
           </p>
           <p>
             If you do not agree to the updated Terms, you may reject them by ceasing to use the Services and/or terminating your account. However, if you continue to access or use the Services after the effective date of the changes, you agree to be bound by the updated Terms.
@@ -48,7 +48,7 @@ export function Terms() {
           <h2 className="text-xl font-semibold text-white">Privacy & Security</h2>
           <p>
             IV takes your privacy very seriously. Our latest{' '}
-            <Link to="/privacy" className="text-primary-400 hover:underline">Privacy and Cookies Policy</Link>{' '}
+            <Link to="/privacy" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Privacy and Cookies Policy</Link>{' '}
             explains how we collect, use, disclose, store, and protect your personal information, including data accessed and stored from integrations like Stripe Connect and Google Analytics 4. We comply with applicable privacy and data security laws, including the federal Children's Online Privacy Protection Act (COPPA), New York's Child Data Protection Act (NYCDPA), the New York SHIELD Act, and the General Data Protection Regulation (GDPR) where relevant.
           </p>
           <p>
@@ -102,7 +102,7 @@ export function Terms() {
           <h2 className="text-xl font-semibold text-white">Intellectual Property & Copyright</h2>
           <p>
             All content on the Services is owned by IV or our licensors and protected by copyright, trademark, and other laws. Our{' '}
-            <Link to="/copyright" className="text-primary-400 hover:underline">Copyright Dispute Policy</Link>{' '}
+            <Link to="/copyright" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Copyright Dispute Policy</Link>{' '}
             outlines how we handle copyright claims, including DMCA notices. For DMCA inquiries, contact our Designated Agent at the address or email above.
           </p>
 
@@ -142,11 +142,11 @@ export function Terms() {
             All Content is protected by copyright, trademark, and other intellectual property laws. You may not use, copy, reproduce, modify, or otherwise exploit any Content that you do not own without prior written consent.
           </p>
           <p>
-            <strong className="text-blue-400">Your Rights to Your Content:</strong> When you submit User Content, you retain all ownership rights. However, by submitting it, you grant IV a worldwide, non-exclusive, royalty-free, transferable, sublicensable license to use, store, reproduce, display, distribute, and modify your User Content as necessary to provide the Services.
+            <strong className="text-white">Your Rights to Your Content:</strong> When you submit User Content, you retain all ownership rights. However, by submitting it, you grant IV a worldwide, non-exclusive, royalty-free, transferable, sublicensable license to use, store, reproduce, display, distribute, and modify your User Content as necessary to provide the Services.
           </p>
           <p>
             If you believe any Content on the Services infringes your intellectual property rights, please refer to our{' '}
-            <Link to="/copyright" className="text-primary-400 hover:underline">Copyright Dispute Policy</Link>{' '}
+            <Link to="/copyright" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Copyright Dispute Policy</Link>{' '}
             for DMCA notice procedures.
           </p>
 
@@ -212,8 +212,8 @@ export function Terms() {
           <h2 className="text-xl font-semibold text-white">Entire Agreement</h2>
           <p>
             These Terms, together with the{' '}
-            <Link to="/privacy" className="text-primary-400 hover:underline">Privacy and Cookies Policy</Link> and{' '}
-            <Link to="/copyright" className="text-primary-400 hover:underline">Copyright Dispute Policy</Link>,
+            <Link to="/privacy" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Privacy and Cookies Policy</Link> and{' '}
+            <Link to="/copyright" className="text-blue-400 hover:underline bg-blue-400/10 px-1 py-0.5 rounded">Copyright Dispute Policy</Link>,
             constitute the complete, final, and exclusive statement of the mutual understanding between you and IV regarding the Services, superseding all prior agreements.
           </p>
 
