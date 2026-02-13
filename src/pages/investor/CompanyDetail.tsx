@@ -13,6 +13,8 @@ import {
   Linkedin,
   Youtube,
   GraduationCap,
+  Newspaper,
+  ExternalLink,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -31,6 +33,7 @@ import type {
   CompanyVideo,
   CompanyMetric,
   CompanyQnA,
+  CompanyNews,
 } from '@/types/database';
 
 // X (formerly Twitter) icon component
@@ -62,6 +65,7 @@ export function CompanyDetail() {
   const [videos, setVideos] = useState<CompanyVideo[]>([]);
   const [metrics, setMetrics] = useState<CompanyMetric[]>([]);
   const [qna, setQna] = useState<CompanyQnA[]>([]);
+  const [news, setNews] = useState<CompanyNews[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +78,8 @@ export function CompanyDetail() {
       supabase.from('company_videos').select('*').eq('company_id', id).order('is_main', { ascending: false }),
       supabase.from('company_metrics').select('*').eq('company_id', id).order('month'),
       supabase.from('company_qna').select('*').eq('company_id', id).order('created_at'),
-    ]).then(([companyRes, execRes, videoRes, metricRes, qnaRes]) => {
+      supabase.from('company_news').select('*').eq('company_id', id).order('published_at', { ascending: false }),
+    ]).then(([companyRes, execRes, videoRes, metricRes, qnaRes, newsRes]) => {
       if (cancelled) return;
       const c = companyRes.data;
       // 관리자에 의해 거절/차단/비공개 처리된 회사는 투자자에게 표시하지 않음
@@ -86,6 +91,7 @@ export function CompanyDetail() {
         setVideos(videoRes.data ?? []);
         setMetrics(metricRes.data ?? []);
         setQna(qnaRes.data ?? []);
+        setNews(newsRes.data ?? []);
       }
       setLoading(false);
     }).catch(() => {
@@ -574,6 +580,49 @@ export function CompanyDetail() {
                   <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
                     {q.answer}
                   </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* News */}
+      {news.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-serif mb-6 flex items-center gap-3">
+            <Newspaper className="w-6 h-6" /> Company News
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            {news.map((n) => (
+              <Card key={n.id}>
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    {n.thumbnail_url && (
+                      <img
+                        src={n.thumbnail_url}
+                        alt={n.title}
+                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg mb-1 line-clamp-2">{n.title}</h3>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        {new Date(n.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}
+                        {n.summary && ` · ${n.summary}`}
+                      </p>
+                      {n.external_link && (
+                        <a
+                          href={n.external_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                        >
+                          Read article <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}
