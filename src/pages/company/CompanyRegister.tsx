@@ -123,7 +123,7 @@ export function CompanyRegister() {
   }>({ stripe: [], ga4: [] });
   const [syncErrors, setSyncErrors] = useState<{ stripe?: string; ga4?: string }>({});
 
-  // Check for existing company and redirect
+  // Check for existing company and redirect (skip blocked/deleted companies)
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -131,6 +131,7 @@ export function CompanyRegister() {
         .from('companies')
         .select('id')
         .eq('user_id', user.id)
+        .neq('is_blocked', true)
         .maybeSingle();
       if (data) {
         navigate('/company/edit', { replace: true });
@@ -463,10 +464,10 @@ export function CompanyRegister() {
         return;
       }
 
-      // 1. 기존 회사 확인
+      // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
       setSubmitStatus('Checking account...');
       const { data: existingCompany } = await supabase
-        .from('companies').select('id').eq('user_id', user.id).maybeSingle();
+        .from('companies').select('id').eq('user_id', user.id).neq('is_blocked', true).maybeSingle();
 
       if (existingCompany) {
         setSubmitError('You already have a registered company. Redirecting to edit page...');

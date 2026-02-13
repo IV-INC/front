@@ -174,11 +174,12 @@ export function CompanyEdit() {
 
     (async () => {
       try {
-        // Fetch company
+        // Fetch company (skip blocked/deleted companies)
         const { data: rows } = await supabase
           .from('companies')
           .select('*')
           .eq('user_id', user.id)
+          .neq('is_blocked', true)
           .order('created_at', { ascending: false })
           .limit(1);
 

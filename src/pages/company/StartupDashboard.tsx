@@ -120,6 +120,7 @@ export function StartupDashboard() {
             .from('companies')
             .select('*')
             .eq('user_id', user.id)
+            .neq('is_blocked', true)
             .order('created_at', { ascending: false })
             .limit(1)
         );
