@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Building2, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -107,7 +107,6 @@ function RequireRole({ children }: { children: React.ReactNode }) {
 
 /** Modal overlay for selecting role after Google OAuth signup */
 function RoleSelectModal() {
-  const navigate = useNavigate();
   const { user, setProfile } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -143,12 +142,7 @@ function RoleSelectModal() {
 
       await supabase.auth.updateUser({ data: { role: selectedRole } });
       setProfile(data);
-
-      if (selectedRole === 'startup') {
-        navigate('/dashboard', { replace: true });
-      } else {
-        navigate('/companies', { replace: true });
-      }
+      // Modal will auto-close because getRole() now returns a value
     } catch (err) {
       console.error('Role select failed:', err);
       setError('An unexpected error occurred. Please try again.');
