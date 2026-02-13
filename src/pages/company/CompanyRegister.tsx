@@ -1392,7 +1392,7 @@ export function CompanyRegister() {
                             <div>
                               <p className="text-sm font-medium mb-3">Revenue Trend</p>
                               <div className="h-48 rounded-lg bg-background border border-border p-3">
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height={180}>
                                   <AreaChart data={metricsData.stripe.map((m) => ({ month: m.month, revenue: m.revenue }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                                     <defs>
                                       <linearGradient id="regRevenueGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1544,7 +1544,7 @@ export function CompanyRegister() {
                                 <div>
                                   <p className="text-sm font-medium mb-3">Active Users</p>
                                   <div className="h-48 rounded-lg bg-background border border-border p-3">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height={180}>
                                       <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, mau: m.mau }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                                         <defs>
                                           <linearGradient id="regMauGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1568,7 +1568,7 @@ export function CompanyRegister() {
                                 <div>
                                   <p className="text-sm font-medium mb-3">Sessions</p>
                                   <div className="h-48 rounded-lg bg-background border border-border p-3">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height={180}>
                                       <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, sessions: m.sessions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                                         <defs>
                                           <linearGradient id="regSessionsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1592,7 +1592,7 @@ export function CompanyRegister() {
                                 <div>
                                   <p className="text-sm font-medium mb-3">Conversions</p>
                                   <div className="h-48 rounded-lg bg-background border border-border p-3">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height={180}>
                                       <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, conversions: m.conversions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                                         <defs>
                                           <linearGradient id="regConversionsGrad" x1="0" y1="0" x2="0" y2="1">

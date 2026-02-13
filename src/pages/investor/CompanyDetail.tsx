@@ -422,7 +422,7 @@ export function CompanyDetail() {
                   <CardContent className="p-6">
                     <p className="text-sm font-medium mb-4">Revenue Trend</p>
                     <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={stripeMetrics.map((m) => ({ month: m.month, revenue: m.revenue }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="detailRevenueGrad" x1="0" y1="0" x2="0" y2="1">
@@ -466,7 +466,7 @@ export function CompanyDetail() {
                   <CardContent className="p-6">
                     <p className="text-sm font-medium mb-4">Monthly Active Users</p>
                     <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={ga4Metrics.map((m) => ({ month: m.month, mau: m.mau }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="detailMauGrad" x1="0" y1="0" x2="0" y2="1">
@@ -510,7 +510,7 @@ export function CompanyDetail() {
                   <CardContent className="p-6">
                     <p className="text-sm font-medium mb-4">Sessions</p>
                     <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={sessionsMetrics.map((m) => ({ month: m.month, sessions: m.sessions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="detailSessionsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -536,7 +536,7 @@ export function CompanyDetail() {
                   <CardContent className="p-6">
                     <p className="text-sm font-medium mb-4">Conversions</p>
                     <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={220}>
                         <AreaChart data={conversionsMetrics.map((m) => ({ month: m.month, conversions: m.conversions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                           <defs>
                             <linearGradient id="detailConversionsGrad" x1="0" y1="0" x2="0" y2="1">

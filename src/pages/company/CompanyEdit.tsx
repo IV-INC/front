@@ -1247,7 +1247,7 @@ export function CompanyEdit() {
                       <div>
                         <p className="text-sm font-medium mb-3">Revenue Trend</p>
                         <div className="h-52">
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer width="100%" height={200}>
                             <BarChart data={stripeMetrics.map((m) => ({ month: m.month, revenue: m.revenue }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                               <XAxis
@@ -1283,7 +1283,7 @@ export function CompanyEdit() {
                       <div>
                         <p className="text-sm font-medium mb-3">Monthly Active Users</p>
                         <div className="h-52">
-                          <ResponsiveContainer width="100%" height="100%">
+                          <ResponsiveContainer width="100%" height={200}>
                             <LineChart data={ga4Metrics.map((m) => ({ month: m.month, mau: m.mau }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                               <XAxis
