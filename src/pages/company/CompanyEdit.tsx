@@ -433,7 +433,7 @@ export function CompanyEdit() {
 
   // Submit handler
   // Timeout wrapper to prevent infinite loading
-  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 15000): Promise<T> =>
+  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 30000): Promise<T> =>
     Promise.race([
       Promise.resolve(promise),
       new Promise<never>((_, reject) =>
@@ -481,6 +481,14 @@ export function CompanyEdit() {
       if (!user || !company) {
         setSubmitError('Please log in again to submit.');
         return;
+      }
+
+      // Refresh auth session to prevent SDK auth lock hanging queries
+      setSubmitStatus('Preparing...');
+      try {
+        await supabase.auth.getSession();
+      } catch {
+        // Ignore refresh errors - continue with current session
       }
 
       // 1. 회사 정보 업데이트

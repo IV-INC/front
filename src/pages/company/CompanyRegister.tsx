@@ -442,7 +442,7 @@ export function CompanyRegister() {
   };
 
   // Timeout wrapper to prevent infinite loading
-  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 15000): Promise<T> =>
+  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 30000): Promise<T> =>
     Promise.race([
       Promise.resolve(promise),
       new Promise<never>((_, reject) =>
@@ -498,6 +498,14 @@ export function CompanyRegister() {
       if (!user) {
         setSubmitError('Please log in again to submit.');
         return;
+      }
+
+      // Refresh auth session to prevent SDK auth lock hanging queries
+      setSubmitStatus('Preparing...');
+      try {
+        await supabase.auth.getSession();
+      } catch {
+        // Ignore refresh errors - continue with current session
       }
 
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
