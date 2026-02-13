@@ -1,10 +1,12 @@
 import { useEffect, lazy, Suspense, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Building2, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { Layout, ProtectedRoute } from '@/components/layout';
 import { Home } from '@/pages';
+import type { UserRole } from '@/types/database';
 
 // Lazy load pages for better initial load performance
 const Login = lazy(() => import('@/pages/auth/Login').then(m => ({ default: m.Login })));
@@ -87,11 +89,105 @@ function RequireRole({ children }: { children: React.ReactNode }) {
   }
 
   const allowedWithoutRole = ['/select-role', '/login', '/register', '/register/company', '/register/member'];
-  if (user && !role && !allowedWithoutRole.includes(location.pathname)) {
-    return <Navigate to="/select-role" replace />;
-  }
+  const needsRole = user && !role && !allowedWithoutRole.includes(location.pathname);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {needsRole && <RoleSelectModal />}
+    </>
+  );
+}
+
+/** Modal overlay for selecting role after Google OAuth signup */
+function RoleSelectModal() {
+  const navigate = useNavigate();
+  const { user, setProfile } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSelectRole = async (role: UserRole) => {
+    if (!user) return;
+    setIsLoading(true);
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: user.id,
+          email: user.email!,
+          role,
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+          avatar_url: user.user_metadata?.avatar_url || null,
+        },
+        { onConflict: 'id' }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      setIsLoading(false);
+      return;
+    }
+
+    await supabase.auth.updateUser({ data: { role } });
+    setProfile(data);
+
+    if (role === 'startup') {
+      navigate('/dashboard', { replace: true });
+    } else {
+      navigate('/companies', { replace: true });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-md mx-4 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl">
+        <div className="px-6 pt-8 pb-4 text-center space-y-4">
+          <div className="mx-auto">
+            <img src="/logo.png" alt="IV Logo" className="w-[60px] h-[60px] mx-auto invert" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-serif font-semibold text-white">Welcome to IV</h1>
+            <p className="text-sm text-neutral-400">Choose how you want to use IV</p>
+          </div>
+        </div>
+
+        <div className="px-6 pb-8 space-y-4">
+          <button
+            onClick={() => handleSelectRole('startup')}
+            disabled={isLoading}
+            className="w-full flex items-center gap-4 p-5 rounded-xl border border-neutral-700 hover:border-white hover:bg-white/5 transition-colors group disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-neutral-800 group-hover:bg-white/10 transition-colors">
+              <Building2 className="w-6 h-6 text-neutral-300" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Join as Company</p>
+              <p className="text-sm text-neutral-400 mt-0.5">
+                Register your startup and showcase to investors
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleSelectRole('investor')}
+            disabled={isLoading}
+            className="w-full flex items-center gap-4 p-5 rounded-xl border border-neutral-700 hover:border-white hover:bg-white/5 transition-colors group disabled:opacity-50"
+          >
+            <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-neutral-800 group-hover:bg-white/10 transition-colors">
+              <User className="w-6 h-6 text-neutral-300" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-semibold text-white">Join as Member</p>
+              <p className="text-sm text-neutral-400 mt-0.5">
+                Discover and evaluate promising startups
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const queryClient = new QueryClient({
