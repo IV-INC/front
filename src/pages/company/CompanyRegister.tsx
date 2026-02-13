@@ -7,6 +7,9 @@ import {
   Check, ArrowLeft, ArrowRight, Upload, Globe, Github, Linkedin, Youtube, FileText,
   GraduationCap, BookOpen,
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { initiateStripeConnect, initiateGoogleOAuth } from '@/lib/integrations';
 import { useAuthStore } from '@/stores/authStore';
@@ -1343,7 +1346,8 @@ export function CompanyRegister() {
 
                     {integrationStatus.stripe === 'connected' && (
                       metricsData.stripe.length > 0 ? (
-                        <div className="space-y-3 pt-2">
+                        <div className="space-y-4 pt-2">
+                          {/* Summary Cards */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <div className="p-3 rounded-lg bg-background border border-border text-center">
                               <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
@@ -1376,6 +1380,30 @@ export function CompanyRegister() {
                               </p>
                             </div>
                           </div>
+
+                          {/* Revenue Trend Chart */}
+                          {metricsData.stripe.length > 1 && (
+                            <div>
+                              <p className="text-sm font-medium mb-3">Revenue Trend</p>
+                              <div className="h-48 rounded-lg bg-background border border-border p-3">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart data={metricsData.stripe.map((m) => ({ month: m.month, revenue: m.revenue }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                    <defs>
+                                      <linearGradient id="regRevenueGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#635BFF" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#635BFF" stopOpacity={0} />
+                                      </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
+                                    <Area type="monotone" dataKey="revenue" stroke="#635BFF" strokeWidth={2} fill="url(#regRevenueGrad)" />
+                                  </AreaChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : syncErrors.stripe ? (
                         <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm text-yellow-500">
@@ -1467,7 +1495,8 @@ export function CompanyRegister() {
 
                     {integrationStatus.ga4 === 'connected' && (
                       metricsData.ga4.length > 0 ? (
-                        <div className="space-y-3 pt-2">
+                        <div className="space-y-4 pt-2">
+                          {/* Summary Cards */}
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <div className="p-3 rounded-lg bg-background border border-border text-center">
                               <p className="text-xs text-muted-foreground mb-1">Sessions Overview</p>
@@ -1500,6 +1529,83 @@ export function CompanyRegister() {
                               </p>
                             </div>
                           </div>
+
+                          {/* GA4 Charts */}
+                          {metricsData.ga4.length > 1 && (
+                            <div className="grid sm:grid-cols-2 gap-4">
+                              {/* Active Users Chart */}
+                              {metricsData.ga4.some((m) => m.mau != null) && (
+                                <div>
+                                  <p className="text-sm font-medium mb-3">Active Users</p>
+                                  <div className="h-48 rounded-lg bg-background border border-border p-3">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, mau: m.mau }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                        <defs>
+                                          <linearGradient id="regMauGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#F9AB00" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#F9AB00" stopOpacity={0} />
+                                          </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'MAU']} />
+                                        <Area type="monotone" dataKey="mau" stroke="#F9AB00" strokeWidth={2} fill="url(#regMauGrad)" />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Sessions Chart */}
+                              {metricsData.ga4.some((m) => m.sessions != null) && (
+                                <div>
+                                  <p className="text-sm font-medium mb-3">Sessions</p>
+                                  <div className="h-48 rounded-lg bg-background border border-border p-3">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, sessions: m.sessions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                        <defs>
+                                          <linearGradient id="regSessionsGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#34A853" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#34A853" stopOpacity={0} />
+                                          </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'Sessions']} />
+                                        <Area type="monotone" dataKey="sessions" stroke="#34A853" strokeWidth={2} fill="url(#regSessionsGrad)" />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Conversions Chart */}
+                              {metricsData.ga4.some((m) => m.conversions != null) && (
+                                <div>
+                                  <p className="text-sm font-medium mb-3">Conversions</p>
+                                  <div className="h-48 rounded-lg bg-background border border-border p-3">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                      <AreaChart data={metricsData.ga4.map((m) => ({ month: m.month, conversions: m.conversions }))} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                                        <defs>
+                                          <linearGradient id="regConversionsGrad" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#EA4335" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#EA4335" stopOpacity={0} />
+                                          </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={{ stroke: 'hsl(var(--border))' }} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+                                        <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }} formatter={(value) => [Number(value).toLocaleString(), 'Conversions']} />
+                                        <Area type="monotone" dataKey="conversions" stroke="#EA4335" strokeWidth={2} fill="url(#regConversionsGrad)" />
+                                      </AreaChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : syncErrors.ga4 ? (
                         <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm text-yellow-500">
