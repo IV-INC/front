@@ -486,22 +486,13 @@ export function Home() {
       {/* Footer */}
       <footer className="border-t border-neutral-800 py-8">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-neutral-500">
-              IV is not an investment platform and does not provide investment advice.
-            </p>
-            <div className="flex items-center gap-4 text-xs text-neutral-500">
-              <a href="#hero" className="hover:text-white transition-colors">About</a>
-              <a href="/terms" className="hover:text-white transition-colors">Terms</a>
-              <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
-              <a href="mailto:contact@ivholdings.com" className="hover:text-white transition-colors">Contact</a>
-              <a href="https://instagram.com/IVinsights" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                <Instagram className="w-4 h-4" />
-              </a>
-              <a href="https://www.linkedin.com/company/ivholdings/about/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-                <Linkedin className="w-4 h-4" />
-              </a>
-            </div>
+          <div className="flex items-center justify-center gap-4 text-neutral-500">
+            <a href="https://instagram.com/IVinsights" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+              <Instagram className="w-5 h-5" />
+            </a>
+            <a href="https://www.linkedin.com/company/ivholdings/about/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+              <Linkedin className="w-5 h-5" />
+            </a>
           </div>
         </div>
       </footer>
