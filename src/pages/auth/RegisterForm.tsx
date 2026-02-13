@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { ArrowLeft, Building2, User } from 'lucide-react';
 import { ConsentForm } from '@/components/consent/ConsentForm';
 import { userConsentItems, founderConsentItems } from '@/lib/consent-data';
+import { useAuthStore } from '@/stores/authStore';
 import type { UserRole } from '@/types/database';
 
 const registerSchema = z.object({
@@ -25,10 +26,19 @@ type Step = 'consent' | 'form';
 
 export function RegisterForm({ role }: { role: UserRole }) {
   const navigate = useNavigate();
+  const { user, getRole, setProfile } = useAuthStore();
+  const currentRole = getRole();
   const [step, setStep] = useState<Step>('consent');
   const [error, setError] = useState<string | null>(null);
 
   const isCompany = role === 'startup';
+
+  // 이미 로그인되어 있고 startup role이 있으면 바로 회사등록 페이지로 리다이렉트
+  useEffect(() => {
+    if (user && isCompany && currentRole === 'startup') {
+      navigate('/company/register', { replace: true });
+    }
+  }, [user, isCompany, currentRole, navigate]);
 
   const {
     register,
@@ -38,7 +48,30 @@ export function RegisterForm({ role }: { role: UserRole }) {
     resolver: zodResolver(registerSchema),
   });
 
-  const handleConsentComplete = () => {
+  const handleConsentComplete = async () => {
+    // 이미 로그인된 사용자: role 설정 후 회사등록 페이지로 이동
+    if (user && isCompany) {
+      if (currentRole !== 'startup') {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: user.id,
+              email: user.email!,
+              role: 'startup',
+              full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+              avatar_url: user.user_metadata?.avatar_url || null,
+            },
+            { onConflict: 'id' }
+          )
+          .select()
+          .single();
+        await supabase.auth.updateUser({ data: { role: 'startup' } });
+        if (profile) setProfile(profile);
+      }
+      navigate('/company/register', { replace: true });
+      return;
+    }
     setStep('form');
   };
 

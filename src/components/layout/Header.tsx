@@ -97,9 +97,9 @@ export function Header() {
                 Complete Setup
               </Link>
             )}
-            {role !== 'investor' && (
+            {(role === 'startup' || role === 'admin') && (
               <Link
-                to={role === 'startup' ? '/company/register' : '/register/company'}
+                to="/company/register"
                 className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Apply
