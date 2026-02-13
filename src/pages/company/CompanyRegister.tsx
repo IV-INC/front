@@ -332,6 +332,12 @@ export function CompanyRegister() {
       if (!valid) return;
     }
     if (step === 3) {
+      const videoUrl = getValues('intro_video_url');
+      if (!videoUrl) {
+        setSubmitError('Please enter a video URL.');
+        return;
+      }
+      setSubmitError(null);
       const valid = await trigger('intro_video_url');
       if (!valid) return;
     }

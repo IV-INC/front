@@ -76,11 +76,17 @@ export function CompanyDetail() {
       supabase.from('company_qna').select('*').eq('company_id', id).order('created_at'),
     ]).then(([companyRes, execRes, videoRes, metricRes, qnaRes]) => {
       if (cancelled) return;
-      setCompany(companyRes.data);
-      setExecutives(execRes.data ?? []);
-      setVideos(videoRes.data ?? []);
-      setMetrics(metricRes.data ?? []);
-      setQna(qnaRes.data ?? []);
+      const c = companyRes.data;
+      // 관리자에 의해 거절/차단/비공개 처리된 회사는 투자자에게 표시하지 않음
+      if (c && (!c.is_visible || c.is_blocked || c.approval_status !== 'approved')) {
+        setCompany(null);
+      } else {
+        setCompany(c);
+        setExecutives(execRes.data ?? []);
+        setVideos(videoRes.data ?? []);
+        setMetrics(metricRes.data ?? []);
+        setQna(qnaRes.data ?? []);
+      }
       setLoading(false);
     }).catch(() => {
       if (!cancelled) setLoading(false);

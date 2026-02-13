@@ -374,33 +374,61 @@ export function AdminDashboard() {
     if (!deleteTargetId) return;
     setActionLoading(true);
 
-    // Delete related data
-    await Promise.all([
-      supabase.from('executives').delete().eq('company_id', deleteTargetId),
-      supabase.from('company_videos').delete().eq('company_id', deleteTargetId),
-      supabase.from('company_qna').delete().eq('company_id', deleteTargetId),
-      supabase.from('company_news').delete().eq('company_id', deleteTargetId),
-      supabase.from('company_metrics').delete().eq('company_id', deleteTargetId),
-      supabase.from('view_logs').delete().eq('company_id', deleteTargetId),
-    ]);
+    try {
+      // Delete related data
+      await Promise.all([
+        supabase.from('executives').delete().eq('company_id', deleteTargetId),
+        supabase.from('company_videos').delete().eq('company_id', deleteTargetId),
+        supabase.from('company_qna').delete().eq('company_id', deleteTargetId),
+        supabase.from('company_news').delete().eq('company_id', deleteTargetId),
+        supabase.from('company_metrics').delete().eq('company_id', deleteTargetId),
+        supabase.from('view_logs').delete().eq('company_id', deleteTargetId),
+      ]);
 
-    await supabase.from('companies').delete().eq('id', deleteTargetId);
+      // Delete company and check for errors
+      const { error } = await supabase.from('companies').delete().eq('id', deleteTargetId);
 
-    if (user?.id) {
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action: 'delete_company',
-        target_type: 'company',
-        target_id: deleteTargetId,
-        metadata: { deleted_at: new Date().toISOString() },
-      });
+      if (error) {
+        console.error('Failed to delete company:', error);
+        alert(`Failed to delete company: ${error.message}`);
+        setActionLoading(false);
+        return;
+      }
+
+      // Verify deletion: ensure the company no longer exists
+      const { data: remaining } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('id', deleteTargetId)
+        .maybeSingle();
+
+      if (remaining) {
+        console.error('Company still exists after delete attempt');
+        alert('Failed to delete company. The data may be protected by database policies. Please check Supabase RLS settings.');
+        setActionLoading(false);
+        return;
+      }
+
+      if (user?.id) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action: 'delete_company',
+          target_type: 'company',
+          target_id: deleteTargetId,
+          metadata: { deleted_at: new Date().toISOString() },
+        });
+      }
+
+      setCompanies((prev) => prev.filter((c) => c.id !== deleteTargetId));
+      setSelectedCompany(null);
+      setDeleteDialogOpen(false);
+      setDeleteTargetId(null);
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert(`Delete failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setActionLoading(false);
     }
-
-    setCompanies((prev) => prev.filter((c) => c.id !== deleteTargetId));
-    setSelectedCompany(null);
-    setDeleteDialogOpen(false);
-    setDeleteTargetId(null);
-    setActionLoading(false);
   };
 
   // Open edit dialog

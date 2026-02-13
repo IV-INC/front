@@ -19,6 +19,7 @@ import {
   Play,
   MessageSquare,
   RefreshCw,
+  GraduationCap,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -204,11 +205,17 @@ export function StartupDashboard() {
 
   // Company exists - show dashboard
   const getStatusInfo = () => {
+    if (company.is_blocked) {
+      return { label: 'Blocked', color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: XCircle };
+    }
     if (company.approval_status === 'rejected') {
       return { label: 'Rejected', color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: XCircle };
     }
-    if (company.approval_status === 'approved') {
+    if (company.approval_status === 'approved' && company.is_visible) {
       return { label: 'Approved', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: CheckCircle };
+    }
+    if (company.approval_status === 'approved' && !company.is_visible) {
+      return { label: 'Hidden', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: AlertTriangle };
     }
     return { label: 'Pending Review', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Clock };
   };
@@ -268,17 +275,39 @@ export function StartupDashboard() {
         <div>
           <p className="font-medium">{statusInfo.label}</p>
           <p className="text-sm opacity-80">
-            {company.approval_status === 'approved'
-              ? 'Your company is visible to investors.'
+            {company.is_blocked
+              ? 'Your company has been blocked by an admin and is no longer visible to investors.'
               : company.approval_status === 'rejected'
-              ? 'Your company profile has been rejected by an admin.'
+              ? 'Your company profile has been rejected by an admin and is no longer visible to investors.'
+              : company.approval_status === 'approved' && company.is_visible
+              ? 'Your company is visible to investors.'
+              : company.approval_status === 'approved' && !company.is_visible
+              ? 'Your company has been hidden by an admin and is no longer visible to investors.'
               : 'Your company profile is under review. It will be visible to investors once approved by an admin.'}
           </p>
         </div>
       </div>
 
+      {/* Blocked Notice */}
+      {company.is_blocked && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-lg border bg-red-500/10 border-red-500/30">
+          <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium text-red-400">Company Blocked</p>
+            <p className="text-sm text-red-300 mt-1">
+              Your company has been blocked by an admin. All company data is hidden from investors. Please contact support if you believe this is an error.
+            </p>
+            {company.reviewed_at && (
+              <p className="text-xs text-red-400/70 mt-2">
+                {new Date(company.reviewed_at).toLocaleDateString('ko-KR')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Rejection Reason */}
-      {company.approval_status === 'rejected' && company.rejection_reason && (
+      {!company.is_blocked && company.approval_status === 'rejected' && company.rejection_reason && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-lg border bg-red-500/10 border-red-500/30">
           <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div>
@@ -417,19 +446,44 @@ export function StartupDashboard() {
         <Card>
           <CardContent className="p-6">
             <h3 className="font-semibold mb-4">Leadership Team</h3>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-4">
               {executives.map((exec) => (
-                <div key={exec.id} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div key={exec.id} className="flex items-start gap-4 p-4 rounded-lg bg-secondary/50 border border-border">
+                  <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center overflow-hidden flex-shrink-0">
                     {exec.photo_url ? (
                       <img src={exec.photo_url} alt={exec.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Users className="w-4 h-4 text-muted-foreground" />
+                      <Users className="w-6 h-6 text-muted-foreground" />
                     )}
                   </div>
-                  <div>
-                    <p className="font-medium text-sm">{exec.name}</p>
-                    <p className="text-xs text-muted-foreground">{exec.role}</p>
+                  <div className="flex-1 min-w-0">
+                    <Badge variant="outline" className="text-xs mb-1">{exec.role}</Badge>
+                    <p className="font-semibold">{exec.name}</p>
+                    {exec.education && (
+                      <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
+                        <GraduationCap className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>{exec.education}</span>
+                      </p>
+                    )}
+                    {exec.bio && (
+                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed line-clamp-3">
+                        {exec.bio}
+                      </p>
+                    )}
+                    {(exec.linkedin_url || exec.twitter_url) && (
+                      <div className="flex gap-2 mt-2">
+                        {exec.linkedin_url && (
+                          <a href={exec.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2 py-1 rounded bg-background hover:bg-accent text-xs transition-colors">
+                            <Linkedin className="w-3 h-3" /> LinkedIn
+                          </a>
+                        )}
+                        {exec.twitter_url && (
+                          <a href={exec.twitter_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2 py-1 rounded bg-background hover:bg-accent text-xs transition-colors">
+                            <XIcon className="w-3 h-3" /> X
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
