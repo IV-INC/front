@@ -20,6 +20,8 @@ import {
   MessageSquare,
   RefreshCw,
   GraduationCap,
+  Newspaper,
+  ExternalLink,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -28,7 +30,7 @@ import { supabase } from '@/lib/supabase';
 import { initiateStripeConnect, initiateGoogleOAuth } from '@/lib/integrations';
 import { useAuthStore } from '@/stores/authStore';
 import { Card, CardContent, Badge, Button } from '@/components/ui';
-import type { Company, Executive, CompanyVideo, CompanyQnA, CompanyMetric } from '@/types/database';
+import type { Company, Executive, CompanyVideo, CompanyQnA, CompanyMetric, CompanyNews } from '@/types/database';
 
 const XIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -44,6 +46,7 @@ export function StartupDashboard() {
   const [videos, setVideos] = useState<CompanyVideo[]>([]);
   const [qna, setQna] = useState<CompanyQnA[]>([]);
   const [metrics, setMetrics] = useState<CompanyMetric[]>([]);
+  const [news, setNews] = useState<CompanyNews[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -149,7 +152,7 @@ export function StartupDashboard() {
           }
 
           setCompany(data);
-          const [execRes, videoRes, qnaRes, metricsRes] = await Promise.all([
+          const [execRes, videoRes, qnaRes, metricsRes, newsRes] = await Promise.all([
             withTimeout(supabase.from('executives').select('*').eq('company_id', data.id).order('created_at'))
               .then(r => r, () => ({ data: null })),
             withTimeout(supabase.from('company_videos').select('*').eq('company_id', data.id).eq('is_main', true).limit(1))
@@ -158,12 +161,15 @@ export function StartupDashboard() {
               .then(r => r, () => ({ data: null })),
             withTimeout(supabase.from('company_metrics').select('*').eq('company_id', data.id).order('month', { ascending: true }))
               .then(r => r, () => ({ data: null })),
+            withTimeout(supabase.from('company_news').select('*').eq('company_id', data.id).order('published_at', { ascending: false }))
+              .then(r => r, () => ({ data: null })),
           ]);
           if (!cancelled) {
             setExecutives(execRes.data ?? []);
             setVideos((videoRes.data as CompanyVideo[] | null) ?? []);
             setQna((qnaRes.data as CompanyQnA[] | null) ?? []);
             setMetrics((metricsRes.data as CompanyMetric[] | null) ?? []);
+            setNews((newsRes.data as CompanyNews[] | null) ?? []);
           }
         }
       } catch (err) {
@@ -509,6 +515,49 @@ export function StartupDashboard() {
                   <p className="font-medium text-sm mb-2">{item.question}</p>
                   <p className="text-sm text-muted-foreground whitespace-pre-wrap break-all overflow-hidden">{item.answer}</p>
                 </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* News */}
+      {news.length > 0 && (
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Newspaper className="w-4 h-4" />
+              Company News
+            </h3>
+            <div className="space-y-3">
+              {news.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.external_link ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-4 p-4 rounded-lg bg-secondary/50 border border-border hover:bg-secondary/80 transition-colors"
+                >
+                  {item.thumbnail_url && (
+                    <img
+                      src={item.thumbnail_url}
+                      alt=""
+                      className="w-24 h-16 rounded object-cover flex-shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{item.title}</p>
+                    {item.summary && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{item.summary}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <span>{new Date(item.published_at).toLocaleDateString('ko-KR')}</span>
+                      {item.external_link && (
+                        <ExternalLink className="w-3 h-3" />
+                      )}
+                    </div>
+                  </div>
+                </a>
               ))}
             </div>
           </CardContent>
