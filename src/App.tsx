@@ -72,10 +72,16 @@ function RequireRole({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [isLoading, setLoading]);
 
-  // Public pages - show immediately
+  // Public pages - show immediately (but still show role modal if needed)
   const publicPaths = ['/', '/login', '/register/company', '/register/member', '/oauth/callback', '/terms', '/privacy', '/policies', '/copyright', '/dpa'];
   if (publicPaths.includes(location.pathname)) {
-    return <>{children}</>;
+    const needsRoleOnPublic = user && !isLoading && !role && location.pathname !== '/login' && location.pathname !== '/register/company' && location.pathname !== '/register/member';
+    return (
+      <>
+        {children}
+        {needsRoleOnPublic && <RoleSelectModal />}
+      </>
+    );
   }
 
   // Protected routes - redirect to login if not authenticated or timed out
