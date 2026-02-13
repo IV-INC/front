@@ -372,50 +372,63 @@ export function CompanyRegister() {
     setSubmitError(null);
 
     try {
-      // Ensure session is valid before upload
-      let { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        session = refreshData.session;
-      }
-      if (!session) {
-        setSubmitError('Session expired. Please log in again.');
-        setDeckUploading(false);
-        return;
-      }
+      // Read JWT directly from localStorage to bypass SDK auth lock
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      let token = supabaseAnonKey;
+      try {
+        const key = Object.keys(localStorage).find(
+          (k) => k.startsWith('sb-') && k.endsWith('-auth-token'),
+        );
+        if (key) {
+          const parsed = JSON.parse(localStorage.getItem(key) || '');
+          if (parsed?.access_token) token = parsed.access_token;
+        }
+      } catch { /* ignore */ }
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `decks/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('company-assets')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: file.type,
-        });
+      // Direct fetch to Storage REST API with AbortController timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        if (uploadError.message?.includes('Bucket not found')) {
-          setSubmitError('Storage bucket not configured. Please create a "company-assets" bucket in Supabase Dashboard → Storage.');
-        } else if (uploadError.message?.includes('security') || uploadError.message?.includes('policy') || uploadError.message?.includes('403')) {
-          setSubmitError('Storage permission denied. Please check the "company-assets" bucket policies in Supabase Dashboard.');
+      const res = await fetch(
+        `${supabaseUrl}/storage/v1/object/company-assets/${filePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'apikey': supabaseAnonKey,
+            'x-upsert': 'true',
+          },
+          body: file,
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        if (res.status === 401 || res.status === 403) {
+          setSubmitError('Storage permission denied. Please log in again or contact support.');
         } else {
-          setSubmitError(`Upload failed: ${uploadError.message}`);
+          setSubmitError(`Upload failed (${res.status}): ${body || res.statusText}`);
         }
         return;
       }
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-assets')
-        .getPublicUrl(filePath);
-
+      const publicUrl = `${supabaseUrl}/storage/v1/object/public/company-assets/${filePath}`;
       setCompanyDeck({ name: file.name, url: publicUrl });
-    } catch (error) {
-      console.error('Deck upload failed:', error);
-      setSubmitError(error instanceof Error ? `Upload failed: ${error.message}` : 'Failed to upload deck. Please try again.');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setSubmitError('Upload timed out. Please check your connection and try again.');
+      } else {
+        console.error('Deck upload failed:', err);
+        setSubmitError(err instanceof Error ? err.message : 'Failed to upload deck. Please try again.');
+      }
     } finally {
       setDeckUploading(false);
     }
