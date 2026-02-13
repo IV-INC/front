@@ -110,38 +110,49 @@ function RoleSelectModal() {
   const navigate = useNavigate();
   const { user, setProfile } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSelectRole = async (role: UserRole) => {
+  const handleSelectRole = async (selectedRole: UserRole) => {
     if (!user) return;
     setIsLoading(true);
+    setError(null);
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(
-        {
-          id: user.id,
-          email: user.email!,
-          role,
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-          avatar_url: user.user_metadata?.avatar_url || null,
-        },
-        { onConflict: 'id' }
-      )
-      .select()
-      .single();
+    try {
+      const email = user.email || user.user_metadata?.email || '';
+      const { data, error: dbError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            email,
+            role: selectedRole,
+            full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+            avatar_url: user.user_metadata?.avatar_url || null,
+          },
+          { onConflict: 'id' }
+        )
+        .select()
+        .single();
 
-    if (error) {
+      if (dbError || !data) {
+        console.error('Role select error:', dbError);
+        setError('Failed to set role. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      await supabase.auth.updateUser({ data: { role: selectedRole } });
+      setProfile(data);
+
+      if (selectedRole === 'startup') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/companies', { replace: true });
+      }
+    } catch (err) {
+      console.error('Role select failed:', err);
+      setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
-      return;
-    }
-
-    await supabase.auth.updateUser({ data: { role } });
-    setProfile(data);
-
-    if (role === 'startup') {
-      navigate('/dashboard', { replace: true });
-    } else {
-      navigate('/companies', { replace: true });
     }
   };
 
@@ -156,6 +167,9 @@ function RoleSelectModal() {
             <h1 className="text-2xl font-serif font-semibold text-white">Welcome to IV</h1>
             <p className="text-sm text-neutral-400">Choose how you want to use IV</p>
           </div>
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
         </div>
 
         <div className="px-6 pb-8 space-y-4">
