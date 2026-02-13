@@ -649,10 +649,11 @@ export function CompanyRegister() {
           external_link: n.url.trim() || null,
           summary: n.source.trim() || null,
           thumbnail_url: null,
-          published_at: n.date,
+          published_at: n.date.match(/^\d{4}-\d{2}$/) ? `${n.date}-01` : n.date,
         }));
         promises.push(
-          withTimeout(supabase.from('company_news').insert(newsRows)).then(() => {}, () => {}),
+          withTimeout(supabase.from('company_news').insert(newsRows))
+            .then(r => { if (r.error) console.error('News insert error:', r.error); }, (e) => console.error('News insert failed:', e)),
         );
       }
 

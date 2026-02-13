@@ -163,7 +163,7 @@ export function StartupDashboard() {
             withTimeout(supabase.from('company_metrics').select('*').eq('company_id', data.id).order('month', { ascending: true }))
               .then(r => r, () => ({ data: null })),
             withTimeout(supabase.from('company_news').select('*').eq('company_id', data.id).order('published_at', { ascending: false }))
-              .then(r => r, () => ({ data: null })),
+              .then(r => { if (r.error) console.error('News fetch error:', r.error); return r; }, (e) => { console.error('News fetch failed:', e); return { data: null }; }),
           ]);
           if (!cancelled) {
             setExecutives(execRes.data ?? []);
