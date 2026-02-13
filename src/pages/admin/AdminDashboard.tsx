@@ -369,43 +369,29 @@ export function AdminDashboard() {
     setActionLoading(false);
   };
 
-  // Delete company
+  // Delete company (soft-delete: RLS blocks hard DELETE, so mark as blocked + hidden)
   const handleDeleteConfirm = async () => {
     if (!deleteTargetId) return;
     setActionLoading(true);
 
     try {
-      // Delete related data
-      await Promise.all([
-        supabase.from('executives').delete().eq('company_id', deleteTargetId),
-        supabase.from('company_videos').delete().eq('company_id', deleteTargetId),
-        supabase.from('company_qna').delete().eq('company_id', deleteTargetId),
-        supabase.from('company_news').delete().eq('company_id', deleteTargetId),
-        supabase.from('company_metrics').delete().eq('company_id', deleteTargetId),
-        supabase.from('view_logs').delete().eq('company_id', deleteTargetId),
-      ]);
+      const now = new Date().toISOString();
 
-      // Delete company and check for errors
-      const { error } = await supabase.from('companies').delete().eq('id', deleteTargetId);
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          is_visible: false,
+          is_blocked: true,
+          approval_status: 'rejected' as ApprovalStatus,
+          rejection_reason: 'Deleted by admin',
+          reviewed_at: now,
+          reviewed_by: user?.id ?? null,
+        })
+        .eq('id', deleteTargetId);
 
       if (error) {
         console.error('Failed to delete company:', error);
         alert(`Failed to delete company: ${error.message}`);
-        setActionLoading(false);
-        return;
-      }
-
-      // Verify deletion: ensure the company no longer exists
-      const { data: remaining } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('id', deleteTargetId)
-        .maybeSingle();
-
-      if (remaining) {
-        console.error('Company still exists after delete attempt');
-        alert('Failed to delete company. The data may be protected by database policies. Please check Supabase RLS settings.');
-        setActionLoading(false);
         return;
       }
 
@@ -415,7 +401,7 @@ export function AdminDashboard() {
           action: 'delete_company',
           target_type: 'company',
           target_id: deleteTargetId,
-          metadata: { deleted_at: new Date().toISOString() },
+          metadata: { deleted_at: now },
         });
       }
 
