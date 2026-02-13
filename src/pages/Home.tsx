@@ -483,19 +483,7 @@ export function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-800 py-8">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-center gap-4 text-neutral-500">
-            <a href="https://instagram.com/IVinsights" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-              <Instagram className="w-5 h-5" />
-            </a>
-            <a href="https://www.linkedin.com/company/ivholdings/about/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
-              <Linkedin className="w-5 h-5" />
-            </a>
-          </div>
-        </div>
-      </footer>
+      {/* Footer spacer - layout Footer handles the actual footer */}
     </div>
   );
 }

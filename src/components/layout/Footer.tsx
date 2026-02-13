@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Instagram, Linkedin } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -52,6 +53,14 @@ export function Footer() {
               <li>3243 44TH APT 1F</li>
               <li>ASTORIA, NY 11103-2339</li>
             </ul>
+            <div className="flex items-center gap-3 mt-4">
+              <a href="https://instagram.com/IVinsights" target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-white transition-colors">
+                <Instagram className="w-5 h-5" />
+              </a>
+              <a href="https://www.linkedin.com/company/ivholdings/about/" target="_blank" rel="noopener noreferrer" className="text-neutral-400 hover:text-white transition-colors">
+                <Linkedin className="w-5 h-5" />
+              </a>
+            </div>
           </div>
         </div>
 
