@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Trash2, Upload, Globe, Github, Linkedin, Youtube, FileText,
   Check, ArrowLeft, Video, MessageSquare, Newspaper, RefreshCw,
-  GraduationCap, BookOpen,
+  GraduationCap, BookOpen, ExternalLink,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -251,9 +251,11 @@ export function CompanyEdit() {
           setQuestionAnswers(answers);
         }
 
-        // Set deck
+        // Set deck — extract file name from URL
         if (companyData.deck_url) {
-          setCompanyDeck({ name: 'Current Deck', url: companyData.deck_url });
+          const urlPath = companyData.deck_url.split('/').pop() || '';
+          const deckName = urlPath.includes('-') ? urlPath.replace(/^[^-]+-\d+-?/, '').replace(/\.\w+$/, (m) => m) || urlPath : urlPath;
+          setCompanyDeck({ name: decodeURIComponent(deckName) || 'IR Deck', url: companyData.deck_url });
         }
 
         // Reset form with existing data
@@ -890,18 +892,34 @@ export function CompanyEdit() {
                           <p className="text-xs text-muted-foreground">Click to replace</p>
                         </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setCompanyDeck(null);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(companyDeck.url, '_blank');
+                          }}
+                          title="View deck"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCompanyDeck(null);
+                          }}
+                          title="Remove deck"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-2">

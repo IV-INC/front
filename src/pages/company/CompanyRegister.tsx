@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Trash2, Building2, Users, Video, BarChart3, MessageSquare, Newspaper,
   Check, ArrowLeft, ArrowRight, Upload, Globe, Github, Linkedin, Youtube, FileText,
-  GraduationCap, BookOpen,
+  GraduationCap, BookOpen, ExternalLink,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -920,18 +920,34 @@ export function CompanyRegister() {
                               <p className="text-xs text-muted-foreground">Click to replace</p>
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setCompanyDeck(null);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(companyDeck.url, '_blank');
+                              }}
+                              title="View deck"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setCompanyDeck(null);
+                              }}
+                              title="Remove deck"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-2">
