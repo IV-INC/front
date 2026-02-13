@@ -21,20 +21,20 @@ export function DPA() {
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">1. Definitions</h2>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-white">1.1</strong> "Controller," "Processor," "Personal Data," "Processing," "Data Subject," and "Supervisory Authority" have the meanings given in the GDPR.</li>
-            <li><strong className="text-white">1.2</strong> "Customer" means the entity or person that enters into the Terms and uses the Services.</li>
-            <li><strong className="text-white">1.3</strong> "Services" means IV's websites, products, applications, and services provided under the Terms.</li>
-            <li><strong className="text-white">1.4</strong> "Sub-processor" means a third party engaged by IV to process Personal Data on behalf of Customer.</li>
+            <li><strong className="text-blue-400">1.1</strong> "Controller," "Processor," "Personal Data," "Processing," "Data Subject," and "Supervisory Authority" have the meanings given in the GDPR.</li>
+            <li><strong className="text-blue-400">1.2</strong> "Customer" means the entity or person that enters into the Terms and uses the Services.</li>
+            <li><strong className="text-blue-400">1.3</strong> "Services" means IV's websites, products, applications, and services provided under the Terms.</li>
+            <li><strong className="text-blue-400">1.4</strong> "Sub-processor" means a third party engaged by IV to process Personal Data on behalf of Customer.</li>
           </ul>
 
           {/* 2. Roles and Scope */}
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">2. Roles and Scope</h2>
           <p>
-            <strong className="text-white">2.1</strong> Customer is the Controller of Personal Data processed via the Services. IV is the Processor of such Personal Data.
+            <strong className="text-blue-400">2.1</strong> Customer is the Controller of Personal Data processed via the Services. IV is the Processor of such Personal Data.
           </p>
           <p>
-            <strong className="text-white">2.2</strong> IV will process Personal Data only on Customer's documented instructions, unless required to do so by applicable law.
+            <strong className="text-blue-400">2.2</strong> IV will process Personal Data only on Customer's documented instructions, unless required to do so by applicable law.
           </p>
 
           {/* 3. Details of Processing */}
@@ -58,22 +58,22 @@ export function DPA() {
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">5. IV (Processor) Obligations</h2>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-white">5.1 Confidentiality.</strong> IV will ensure that persons authorized to process Personal Data are bound by confidentiality obligations.</li>
-            <li><strong className="text-white">5.2 Security.</strong> IV will implement appropriate technical and organizational measures to ensure a level of security appropriate to the risk, as described in Annex 2.</li>
-            <li><strong className="text-white">5.3 Assistance.</strong> IV will provide reasonable assistance to Customer to help fulfill GDPR obligations regarding Data Subject rights requests, security, breach notification, and impact assessments.</li>
-            <li><strong className="text-white">5.4 Deletion/Return.</strong> At the choice of Customer, IV will delete or return Personal Data at the end of the Services, unless applicable law requires retention.</li>
-            <li><strong className="text-white">5.5 Audit/Information.</strong> IV will make available information reasonably necessary to demonstrate compliance with this DPA and will allow for audits as described in Section 10.</li>
+            <li><strong className="text-blue-400">5.1 Confidentiality.</strong> IV will ensure that persons authorized to process Personal Data are bound by confidentiality obligations.</li>
+            <li><strong className="text-blue-400">5.2 Security.</strong> IV will implement appropriate technical and organizational measures to ensure a level of security appropriate to the risk, as described in Annex 2.</li>
+            <li><strong className="text-blue-400">5.3 Assistance.</strong> IV will provide reasonable assistance to Customer to help fulfill GDPR obligations regarding Data Subject rights requests, security, breach notification, and impact assessments.</li>
+            <li><strong className="text-blue-400">5.4 Deletion/Return.</strong> At the choice of Customer, IV will delete or return Personal Data at the end of the Services, unless applicable law requires retention.</li>
+            <li><strong className="text-blue-400">5.5 Audit/Information.</strong> IV will make available information reasonably necessary to demonstrate compliance with this DPA and will allow for audits as described in Section 10.</li>
           </ul>
 
           {/* 6. Sub-processors */}
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">6. Sub-processors</h2>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-white">6.1</strong> Customer gives IV general authorization to engage Sub-processors.</li>
-            <li><strong className="text-white">6.2</strong> IV's current Sub-processors are listed in Annex 3 below.</li>
-            <li><strong className="text-white">6.3</strong> IV will provide notice of any intended addition or replacement of Sub-processors. If Customer reasonably objects, the parties will work in good faith to resolve it.</li>
-            <li><strong className="text-white">6.4</strong> IV will impose data protection obligations on Sub-processors that are no less protective than those in this DPA.</li>
-            <li><strong className="text-white">6.5</strong> IV remains responsible for Sub-processors' obligations per GDPR Article 28(4).</li>
+            <li><strong className="text-blue-400">6.1</strong> Customer gives IV general authorization to engage Sub-processors.</li>
+            <li><strong className="text-blue-400">6.2</strong> IV's current Sub-processors are listed in Annex 3 below.</li>
+            <li><strong className="text-blue-400">6.3</strong> IV will provide notice of any intended addition or replacement of Sub-processors. If Customer reasonably objects, the parties will work in good faith to resolve it.</li>
+            <li><strong className="text-blue-400">6.4</strong> IV will impose data protection obligations on Sub-processors that are no less protective than those in this DPA.</li>
+            <li><strong className="text-blue-400">6.5</strong> IV remains responsible for Sub-processors' obligations per GDPR Article 28(4).</li>
           </ul>
 
           {/* 7. Data Subject Requests */}
@@ -87,9 +87,9 @@ export function DPA() {
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">8. Personal Data Breaches</h2>
           <ul className="list-disc list-inside space-y-2">
-            <li><strong className="text-white">8.1</strong> IV will notify Customer without undue delay after becoming aware of a Personal Data Breach.</li>
-            <li><strong className="text-white">8.2</strong> IV will provide information reasonably necessary to support breach notification and remediation.</li>
-            <li><strong className="text-white">8.3</strong> Breach notification is not an admission of fault or liability.</li>
+            <li><strong className="text-blue-400">8.1</strong> IV will notify Customer without undue delay after becoming aware of a Personal Data Breach.</li>
+            <li><strong className="text-blue-400">8.2</strong> IV will provide information reasonably necessary to support breach notification and remediation.</li>
+            <li><strong className="text-blue-400">8.3</strong> Breach notification is not an admission of fault or liability.</li>
           </ul>
 
           {/* 9. International Transfers */}
@@ -183,9 +183,9 @@ export function DPA() {
           <hr className="border-neutral-800" />
           <h2 className="text-xl font-semibold text-white">ANNEX 3 — Sub-processors (Current)</h2>
           <ul className="list-disc list-inside space-y-1">
-            <li><strong className="text-white">Supabase</strong> — hosting/database infrastructure</li>
-            <li><strong className="text-white">Stripe</strong> — payment processing and/or financial data integrations (if enabled)</li>
-            <li><strong className="text-white">Google</strong> — analytics services such as Google Analytics/GA4 (if enabled)</li>
+            <li><strong className="text-blue-400">Supabase</strong> — hosting/database infrastructure</li>
+            <li><strong className="text-blue-400">Stripe</strong> — payment processing and/or financial data integrations (if enabled)</li>
+            <li><strong className="text-blue-400">Google</strong> — analytics services such as Google Analytics/GA4 (if enabled)</li>
           </ul>
           <p>IV may add or replace Sub-processors with notice under Section 6.3.</p>
 

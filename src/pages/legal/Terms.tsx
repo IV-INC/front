@@ -34,10 +34,10 @@ export function Terms() {
             <li>Through in-app notifications, dashboard alerts, or other prominent means in the Services</li>
           </ul>
           <p>
-            For <strong className="text-white">non-material changes</strong>, the updated Terms become effective immediately upon posting.
+            For <strong className="text-blue-400">non-material changes</strong>, the updated Terms become effective immediately upon posting.
           </p>
           <p>
-            For <strong className="text-white">material changes</strong> (such as significant reductions in functionality, new fees, material expansions in data usage rights, or other changes that substantially affect your rights or obligations), we will provide <strong className="text-white">reasonable advance notice</strong> — at least 30 days before the changes take effect (or longer if required by applicable law).
+            For <strong className="text-blue-400">material changes</strong> (such as significant reductions in functionality, new fees, material expansions in data usage rights, or other changes that substantially affect your rights or obligations), we will provide <strong className="text-blue-400">reasonable advance notice</strong> — at least 30 days before the changes take effect (or longer if required by applicable law).
           </p>
           <p>
             If you do not agree to the updated Terms, you may reject them by ceasing to use the Services and/or terminating your account. However, if you continue to access or use the Services after the effective date of the changes, you agree to be bound by the updated Terms.
@@ -142,7 +142,7 @@ export function Terms() {
             All Content is protected by copyright, trademark, and other intellectual property laws. You may not use, copy, reproduce, modify, or otherwise exploit any Content that you do not own without prior written consent.
           </p>
           <p>
-            <strong className="text-white">Your Rights to Your Content:</strong> When you submit User Content, you retain all ownership rights. However, by submitting it, you grant IV a worldwide, non-exclusive, royalty-free, transferable, sublicensable license to use, store, reproduce, display, distribute, and modify your User Content as necessary to provide the Services.
+            <strong className="text-blue-400">Your Rights to Your Content:</strong> When you submit User Content, you retain all ownership rights. However, by submitting it, you grant IV a worldwide, non-exclusive, royalty-free, transferable, sublicensable license to use, store, reproduce, display, distribute, and modify your User Content as necessary to provide the Services.
           </p>
           <p>
             If you believe any Content on the Services infringes your intellectual property rights, please refer to our{' '}

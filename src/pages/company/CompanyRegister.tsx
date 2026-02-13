@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -100,6 +100,14 @@ export function CompanyRegister() {
   // Step 5: Questions
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [questionAnswers, setQuestionAnswers] = useState<Record<string, string>>({});
+
+  // Step 5: Terms & Policy Consents
+  const [termsConsents, setTermsConsents] = useState<Record<string, boolean>>({
+    terms: false,
+    privacy: false,
+    copyright: false,
+    dpa: false,
+  });
 
   // Step 4: Integrations
   const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus>({
@@ -405,6 +413,14 @@ export function CompanyRegister() {
     setSubmitStatus(null);
 
     try {
+      // Check terms & policy consents
+      const allConsented = Object.values(termsConsents).every(Boolean);
+      if (!allConsented) {
+        setValidationErrors(['You must agree to all Terms & Policies before submitting.']);
+        setStep(5);
+        return;
+      }
+
       const values = getValues();
       const result = companyRegisterSchema.safeParse(values);
 
@@ -1545,6 +1561,59 @@ export function CompanyRegister() {
                       </Card>
                     );
                   })}
+                </div>
+
+                {/* Terms & Policy Agreement */}
+                <div className="space-y-4 pt-6 border-t border-border">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">Terms & Policy Agreement</h3>
+                    <p className="text-sm text-muted-foreground">
+                      You must agree to all of the following to submit your registration.
+                    </p>
+                  </div>
+
+                  {[
+                    { key: 'terms', label: 'Terms of Service', path: '/terms' },
+                    { key: 'privacy', label: 'Privacy and Cookies Policy', path: '/privacy' },
+                    { key: 'copyright', label: 'Copyright Dispute Policy', path: '/copyright' },
+                    { key: 'dpa', label: 'Data Processing Addendum (DPA)', path: '/dpa' },
+                  ].map((item) => (
+                    <label
+                      key={item.key}
+                      className={`flex items-start gap-3 p-4 rounded-lg border transition-colors cursor-pointer ${
+                        termsConsents[item.key]
+                          ? 'border-primary/50 bg-primary/5'
+                          : 'border-border bg-secondary/50 hover:bg-secondary'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={termsConsents[item.key]}
+                        onChange={(e) =>
+                          setTermsConsents((prev) => ({ ...prev, [item.key]: e.target.checked }))
+                        }
+                        className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <span className="text-sm leading-relaxed">
+                        I have read and agree to the{' '}
+                        <Link
+                          to={item.path}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary-400 hover:underline font-medium"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {item.label}
+                        </Link>
+                      </span>
+                    </label>
+                  ))}
+
+                  {!Object.values(termsConsents).every(Boolean) && (
+                    <p className="text-xs text-muted-foreground">
+                      {4 - Object.values(termsConsents).filter(Boolean).length} item(s) remaining
+                    </p>
+                  )}
                 </div>
 
               </CardContent>
