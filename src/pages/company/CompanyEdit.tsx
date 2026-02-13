@@ -179,7 +179,7 @@ export function CompanyEdit() {
           .from('companies')
           .select('*')
           .eq('user_id', user.id)
-          .neq('rejection_reason', 'Deleted by admin')
+          .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin')
           .order('created_at', { ascending: false })
           .limit(1);
 

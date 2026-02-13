@@ -131,7 +131,7 @@ export function CompanyRegister() {
         .from('companies')
         .select('id')
         .eq('user_id', user.id)
-        .neq('rejection_reason', 'Deleted by admin')
+        .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin')
         .maybeSingle();
       if (data) {
         navigate('/company/edit', { replace: true });
@@ -467,7 +467,8 @@ export function CompanyRegister() {
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
       setSubmitStatus('Checking account...');
       const { data: existingCompany } = await supabase
-        .from('companies').select('id').eq('user_id', user.id).neq('rejection_reason', 'Deleted by admin').maybeSingle();
+        .from('companies').select('id').eq('user_id', user.id)
+        .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin').maybeSingle();
 
       if (existingCompany) {
         setSubmitError('You already have a registered company. Redirecting to edit page...');
