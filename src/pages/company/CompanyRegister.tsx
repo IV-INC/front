@@ -390,9 +390,23 @@ export function CompanyRegister() {
 
       const { error: uploadError } = await supabase.storage
         .from('company-assets')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type,
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        if (uploadError.message?.includes('Bucket not found')) {
+          setSubmitError('Storage bucket not configured. Please create a "company-assets" bucket in Supabase Dashboard → Storage.');
+        } else if (uploadError.message?.includes('security') || uploadError.message?.includes('policy') || uploadError.message?.includes('403')) {
+          setSubmitError('Storage permission denied. Please check the "company-assets" bucket policies in Supabase Dashboard.');
+        } else {
+          setSubmitError(`Upload failed: ${uploadError.message}`);
+        }
+        return;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('company-assets')
