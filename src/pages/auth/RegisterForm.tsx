@@ -29,7 +29,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
   const { user, getRole, setProfile } = useAuthStore();
   const currentRole = getRole();
   const isCompany = role === 'startup';
-  const [step, setStep] = useState<Step>(isCompany ? 'form' : 'consent');
+  const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
 
   // 이미 로그인되어 있고 startup role이 있으면 바로 회사등록 페이지로 리다이렉트

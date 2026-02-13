@@ -10,7 +10,7 @@ export function Footer() {
           <div>
             <h3 className="text-white font-serif text-xl mb-3">IV</h3>
             <p className="text-neutral-400 text-sm leading-relaxed">
-              Connecting startups with investors through data-driven insights and transparent company profiles.
+              Empowering transparency through data-driven insights and comprehensive company profiles.
             </p>
           </div>
 
