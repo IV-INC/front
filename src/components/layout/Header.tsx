@@ -29,6 +29,9 @@ export function Header() {
       .from('companies')
       .select('id, approval_status')
       .eq('user_id', user.id)
+      .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin')
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
       .then(({ data }) => {
         setHasCompany(!!data);
