@@ -441,6 +441,15 @@ export function CompanyRegister() {
     );
   };
 
+  // Timeout wrapper to prevent infinite loading
+  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 15000): Promise<T> =>
+    Promise.race([
+      Promise.resolve(promise),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms)
+      ),
+    ]);
+
   // Manual submit to bypass handleSubmit hang (react-hook-form + zod v4 issue)
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -493,9 +502,11 @@ export function CompanyRegister() {
 
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
       setSubmitStatus('Checking account...');
-      const { data: existingCompany } = await supabase
-        .from('companies').select('id').eq('user_id', user.id)
-        .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin').maybeSingle();
+      const { data: existingCompany } = await withTimeout(
+        supabase
+          .from('companies').select('id').eq('user_id', user.id)
+          .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin').maybeSingle()
+      );
 
       if (existingCompany) {
         setSubmitError('You already have a registered company. Redirecting to edit page...');
@@ -512,30 +523,32 @@ export function CompanyRegister() {
 
       // 2. 회사 등록
       setSubmitStatus('Registering company...');
-      const { data: company, error: companyError } = await supabase
-        .from('companies')
-        .insert({
-          user_id: user.id,
-          name: data.name,
-          logo_url: data.logo_url || null,
-          short_description: data.short_description,
-          description: data.description,
-          founded_at: data.founded_at,
-          location: data.location,
-          employee_count: data.employee_count,
-          category: data.category,
-          stage: data.stage,
-          website_url: data.website_url || null,
-          github_url: data.github_url || null,
-          linkedin_url: data.linkedin_url || null,
-          twitter_url: data.twitter_url || null,
-          youtube_url: data.youtube_url || null,
-          deck_url: companyDeck?.url || null,
-          stripe_connected: pendingIntegrations.stripe?.status === 'connected',
-          ga4_connected: pendingIntegrations.ga4?.status === 'connected',
-        })
-        .select('id')
-        .single();
+      const { data: company, error: companyError } = await withTimeout(
+        supabase
+          .from('companies')
+          .insert({
+            user_id: user.id,
+            name: data.name,
+            logo_url: data.logo_url || null,
+            short_description: data.short_description,
+            description: data.description,
+            founded_at: data.founded_at,
+            location: data.location,
+            employee_count: data.employee_count,
+            category: data.category,
+            stage: data.stage,
+            website_url: data.website_url || null,
+            github_url: data.github_url || null,
+            linkedin_url: data.linkedin_url || null,
+            twitter_url: data.twitter_url || null,
+            youtube_url: data.youtube_url || null,
+            deck_url: companyDeck?.url || null,
+            stripe_connected: pendingIntegrations.stripe?.status === 'connected',
+            ga4_connected: pendingIntegrations.ga4?.status === 'connected',
+          })
+          .select('id')
+          .single()
+      );
 
       if (companyError || !company) {
         setSubmitError(companyError?.message || 'Failed to register company.');
@@ -560,7 +573,9 @@ export function CompanyRegister() {
         };
       });
 
-      const { error: execError } = await supabase.from('executives').insert(executives);
+      const { error: execError } = await withTimeout(
+        supabase.from('executives').insert(executives)
+      );
       if (execError) {
         console.error('Executive insert error:', execError);
         setSubmitError(`Failed to register executives: ${execError.message}`);
@@ -574,12 +589,12 @@ export function CompanyRegister() {
 
       if (data.intro_video_url) {
         promises.push(
-          supabase.from('company_videos').insert({
+          withTimeout(supabase.from('company_videos').insert({
             company_id: company.id,
             video_url: data.intro_video_url,
             description: 'Company Introduction',
             is_main: true,
-          }).then(() => {}, () => {}),
+          })).then(() => {}, () => {}),
         );
       }
 
@@ -604,7 +619,7 @@ export function CompanyRegister() {
           }));
         if (qnaRows.length > 0) {
           promises.push(
-            supabase.from('company_qna').insert(qnaRows).then(() => {}, () => {}),
+            withTimeout(supabase.from('company_qna').insert(qnaRows)).then(() => {}, () => {}),
           );
         }
       }
@@ -622,7 +637,7 @@ export function CompanyRegister() {
           source: m.source,
         }));
         promises.push(
-          supabase.from('company_metrics').upsert(dbMetrics, { onConflict: 'company_id,month,source' }).then(() => {}, () => {}),
+          withTimeout(supabase.from('company_metrics').upsert(dbMetrics, { onConflict: 'company_id,month,source' })).then(() => {}, () => {}),
         );
       }
 
@@ -637,7 +652,7 @@ export function CompanyRegister() {
           published_at: n.date,
         }));
         promises.push(
-          supabase.from('company_news').insert(newsRows).then(() => {}, () => {}),
+          withTimeout(supabase.from('company_news').insert(newsRows)).then(() => {}, () => {}),
         );
       }
 

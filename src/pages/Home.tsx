@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   Zap, BarChart3, MessageSquare, Play, Video,
   User, BookOpen, Linkedin, ExternalLink,
-  Newspaper, MessageCircle, ArrowRight, Instagram,
+  Newspaper, MessageCircle, ArrowRight,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart as RechartsBarChart, Bar,
