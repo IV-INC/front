@@ -430,6 +430,15 @@ export function CompanyEdit() {
   };
 
   // Submit handler
+  // Timeout wrapper to prevent infinite loading
+  const withTimeout = <T,>(promise: PromiseLike<T>, ms = 15000): Promise<T> =>
+    Promise.race([
+      Promise.resolve(promise),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. Please try again.')), ms)
+      ),
+    ]);
+
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setManualSubmitting(true);
@@ -474,26 +483,28 @@ export function CompanyEdit() {
 
       // 1. 회사 정보 업데이트
       setSubmitStatus('Updating company info...');
-      const { error: companyError } = await supabase
-        .from('companies')
-        .update({
-          name: data.name,
-          logo_url: data.logo_url || null,
-          short_description: data.short_description,
-          description: data.description,
-          founded_at: data.founded_at,
-          location: data.location,
-          employee_count: data.employee_count,
-          category: data.category,
-          stage: data.stage,
-          website_url: data.website_url || null,
-          github_url: data.github_url || null,
-          linkedin_url: data.linkedin_url || null,
-          twitter_url: data.twitter_url || null,
-          youtube_url: data.youtube_url || null,
-          deck_url: companyDeck?.url || null,
-        })
-        .eq('id', company.id);
+      const { error: companyError } = await withTimeout(
+        supabase
+          .from('companies')
+          .update({
+            name: data.name,
+            logo_url: data.logo_url || null,
+            short_description: data.short_description,
+            description: data.description,
+            founded_at: data.founded_at,
+            location: data.location,
+            employee_count: data.employee_count,
+            category: data.category,
+            stage: data.stage,
+            website_url: data.website_url || null,
+            github_url: data.github_url || null,
+            linkedin_url: data.linkedin_url || null,
+            twitter_url: data.twitter_url || null,
+            youtube_url: data.youtube_url || null,
+            deck_url: companyDeck?.url || null,
+          })
+          .eq('id', company.id)
+      );
 
       if (companyError) {
         setSubmitError(`Failed to update company: ${companyError.message}`);
@@ -502,7 +513,7 @@ export function CompanyEdit() {
 
       // 2. 팀 업데이트 (Delete-then-insert)
       setSubmitStatus('Updating leadership team...');
-      await supabase.from('executives').delete().eq('company_id', company.id);
+      await withTimeout(supabase.from('executives').delete().eq('company_id', company.id));
 
       const executives = data.executives.map((exec) => {
         const school = exec.education?.trim() || '';
@@ -520,7 +531,9 @@ export function CompanyEdit() {
         };
       });
 
-      const { error: insertExecError } = await supabase.from('executives').insert(executives);
+      const { error: insertExecError } = await withTimeout(
+        supabase.from('executives').insert(executives)
+      );
       if (insertExecError) {
         setSubmitError(`Failed to insert executives: ${insertExecError.message}`);
         return;
@@ -533,15 +546,15 @@ export function CompanyEdit() {
 
       // Video
       promises.push(
-        supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true)
+        withTimeout(supabase.from('company_videos').delete().eq('company_id', company.id).eq('is_main', true))
           .then(() => {
             if (data.intro_video_url) {
-              return supabase.from('company_videos').insert({
+              return withTimeout(supabase.from('company_videos').insert({
                 company_id: company.id,
                 video_url: data.intro_video_url,
                 description: 'Company Introduction',
                 is_main: true,
-              });
+              }));
             }
           })
           .then(() => {}, () => {}),
@@ -549,7 +562,7 @@ export function CompanyEdit() {
 
       // Q&A
       promises.push(
-        supabase.from('company_qna').delete().eq('company_id', company.id)
+        withTimeout(supabase.from('company_qna').delete().eq('company_id', company.id))
           .then(() => {
             const qnaRows = selectedQuestions
               .filter((q) => questionAnswers[q]?.trim())
@@ -560,7 +573,7 @@ export function CompanyEdit() {
                 answer: questionAnswers[q].trim(),
               }));
             if (qnaRows.length > 0) {
-              return supabase.from('company_qna').insert(qnaRows);
+              return withTimeout(supabase.from('company_qna').insert(qnaRows));
             }
           })
           .then(() => {}, () => {}),
@@ -578,7 +591,7 @@ export function CompanyEdit() {
           published_at: n.date,
         }));
         promises.push(
-          supabase.from('company_news').insert(newsRows).then(() => {}, () => {}),
+          withTimeout(supabase.from('company_news').insert(newsRows)).then(() => {}, () => {}),
         );
       }
 
