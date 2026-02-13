@@ -20,6 +20,8 @@ const OAuthCallback = lazy(() => import('@/pages/auth/OAuthCallback').then(m => 
 const Terms = lazy(() => import('@/pages/legal/Terms').then(m => ({ default: m.Terms })));
 const Privacy = lazy(() => import('@/pages/legal/Privacy').then(m => ({ default: m.Privacy })));
 const Policies = lazy(() => import('@/pages/legal/Policies').then(m => ({ default: m.Policies })));
+const CopyrightDispute = lazy(() => import('@/pages/legal/CopyrightDispute').then(m => ({ default: m.CopyrightDispute })));
+const DPA = lazy(() => import('@/pages/legal/DPA').then(m => ({ default: m.DPA })));
 
 // Loading fallback component
 function PageLoader() {
@@ -69,7 +71,7 @@ function RequireRole({ children }: { children: React.ReactNode }) {
   }, [isLoading, setLoading]);
 
   // Public pages - show immediately
-  const publicPaths = ['/', '/login', '/register/company', '/register/member', '/oauth/callback', '/terms', '/privacy', '/policies'];
+  const publicPaths = ['/', '/login', '/register/company', '/register/member', '/oauth/callback', '/terms', '/privacy', '/policies', '/copyright', '/dpa'];
   if (publicPaths.includes(location.pathname)) {
     return <>{children}</>;
   }
@@ -335,9 +337,11 @@ function AppContent() {
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/policies" element={<Policies />} />
+              <Route path="/copyright" element={<CopyrightDispute />} />
+              <Route path="/dpa" element={<DPA />} />
 
-            {/* Investor routes */}
-            <Route element={<ProtectedRoute allowedRoles={['investor', 'admin']} />}>
+            {/* Investor & Startup routes */}
+            <Route element={<ProtectedRoute allowedRoles={['investor', 'startup', 'admin']} />}>
               <Route path="/companies" element={<CompanyList />} />
               <Route path="/companies/:id" element={<CompanyDetail />} />
             </Route>

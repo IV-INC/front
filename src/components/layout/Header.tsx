@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui';
@@ -15,6 +16,20 @@ const landingNavLinks = [
 export function Header() {
   const { user, profile, logout, getRole } = useAuthStore();
   const role = getRole();
+  const [hasCompany, setHasCompany] = useState(false);
+
+  useEffect(() => {
+    if (!user || role !== 'startup') {
+      setHasCompany(false);
+      return;
+    }
+    supabase
+      .from('companies')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => setHasCompany(!!data));
+  }, [user, role]);
 
   const handleLogout = () => {
     logout();
@@ -82,7 +97,7 @@ export function Header() {
                 Admin
               </Link>
             )}
-            {(role === 'investor' || role === 'admin') && (
+            {(role === 'investor' || role === 'admin' || (role === 'startup' && hasCompany)) && (
               <Link to="/companies" className="text-muted-foreground hover:text-foreground">
                 Explore Startups
               </Link>
@@ -97,7 +112,7 @@ export function Header() {
                 Complete Setup
               </Link>
             )}
-            {(role === 'startup' || role === 'admin') && (
+            {role === 'startup' && !hasCompany && (
               <Link
                 to="/company/register"
                 className="text-sm font-medium px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
