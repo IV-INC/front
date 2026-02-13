@@ -17,18 +17,23 @@ export function Header() {
   const { user, profile, logout, getRole } = useAuthStore();
   const role = getRole();
   const [hasCompany, setHasCompany] = useState(false);
+  const [hasApprovedCompany, setHasApprovedCompany] = useState(false);
 
   useEffect(() => {
     if (!user || role !== 'startup') {
       setHasCompany(false);
+      setHasApprovedCompany(false);
       return;
     }
     supabase
       .from('companies')
-      .select('id')
+      .select('id, approval_status')
       .eq('user_id', user.id)
       .maybeSingle()
-      .then(({ data }) => setHasCompany(!!data));
+      .then(({ data }) => {
+        setHasCompany(!!data);
+        setHasApprovedCompany(data?.approval_status === 'approved');
+      });
   }, [user, role]);
 
   const handleLogout = () => {
@@ -97,7 +102,7 @@ export function Header() {
                 Admin
               </Link>
             )}
-            {(role === 'investor' || role === 'admin' || (role === 'startup' && hasCompany)) && (
+            {(role === 'investor' || role === 'admin' || (role === 'startup' && hasApprovedCompany)) && (
               <Link to="/companies" className="text-muted-foreground hover:text-foreground">
                 Explore Startups
               </Link>
