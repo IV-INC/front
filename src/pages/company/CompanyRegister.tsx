@@ -1343,22 +1343,38 @@ export function CompanyRegister() {
 
                     {integrationStatus.stripe === 'connected' && (
                       metricsData.stripe.length > 0 ? (
-                        <div className="grid sm:grid-cols-3 gap-3 pt-2">
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Monthly MRR</p>
-                            <p className="font-semibold text-lg">
-                              ${(metricsData.stripe[0]?.revenue ?? 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-                            <p className="font-semibold text-lg">
-                              ${metricsData.stripe.reduce((s, m) => s + (m.revenue || 0), 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Months Tracked</p>
-                            <p className="font-semibold text-lg">{metricsData.stripe.length}</p>
+                        <div className="space-y-3 pt-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
+                              <p className="font-semibold text-lg">
+                                ${(metricsData.stripe[0]?.revenue ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+                              <p className="font-semibold text-lg">
+                                ${metricsData.stripe.reduce((s, m) => s + (m.revenue || 0), 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Active Users</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.stripe[0]?.mau ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Sessions</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.stripe[0]?.sessions ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Conversions</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.stripe[0]?.conversions ?? 0).toLocaleString()}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       ) : syncErrors.stripe ? (
@@ -1451,22 +1467,38 @@ export function CompanyRegister() {
 
                     {integrationStatus.ga4 === 'connected' && (
                       metricsData.ga4.length > 0 ? (
-                        <div className="grid sm:grid-cols-3 gap-3 pt-2">
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Monthly Users</p>
-                            <p className="font-semibold text-lg">
-                              {(metricsData.ga4[0]?.mau ?? 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Total Users (6mo)</p>
-                            <p className="font-semibold text-lg">
-                              {metricsData.ga4.reduce((s, m) => s + (m.mau || 0), 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="p-3 rounded-lg bg-background border border-border text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Months Tracked</p>
-                            <p className="font-semibold text-lg">{metricsData.ga4.length}</p>
+                        <div className="space-y-3 pt-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Sessions Overview</p>
+                              <p className="font-semibold text-lg">
+                                {metricsData.ga4.reduce((s, m) => s + (m.sessions || 0), 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Monthly Revenue</p>
+                              <p className="font-semibold text-lg">
+                                ${(metricsData.ga4[0]?.revenue ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Active Users</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.ga4[0]?.mau ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Sessions</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.ga4[0]?.sessions ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <p className="text-xs text-muted-foreground mb-1">Conversions</p>
+                              <p className="font-semibold text-lg">
+                                {(metricsData.ga4[0]?.conversions ?? 0).toLocaleString()}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       ) : syncErrors.ga4 ? (
