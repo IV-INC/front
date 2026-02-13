@@ -138,6 +138,7 @@ export function AdminDashboard() {
       const { data } = await supabase
         .from('companies')
         .select('*')
+        .neq('rejection_reason', 'Deleted by admin')
         .order('created_at', { ascending: false });
       setCompanies(data ?? []);
       setLoading(false);
