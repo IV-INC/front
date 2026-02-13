@@ -70,6 +70,7 @@ export function CompanyList() {
           .from('companies')
           .select('*')
           .eq('is_visible', true)
+          .eq('approval_status', 'approved')
           .neq('is_blocked', true)
           .order(orderCol, { ascending: false });
 

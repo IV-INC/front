@@ -551,6 +551,8 @@ export function CompanyRegister() {
             twitter_url: data.twitter_url || null,
             youtube_url: data.youtube_url || null,
             deck_url: companyDeck?.url || null,
+            is_visible: false,
+            approval_status: 'pending',
             stripe_connected: pendingIntegrations.stripe?.status === 'connected',
             ga4_connected: pendingIntegrations.ga4?.status === 'connected',
           })
