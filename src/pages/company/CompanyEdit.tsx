@@ -963,7 +963,7 @@ export function CompanyEdit() {
                         />
                       </div>
 
-                      <div className="grid sm:grid-cols-3 gap-4">
+                      <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2"><GraduationCap className="w-3 h-3" /> Education</Label>
                           <Input
@@ -980,12 +980,23 @@ export function CompanyEdit() {
                             {...register(`executives.${index}.major`)}
                           />
                         </div>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2"><Linkedin className="w-3 h-3" /> LinkedIn</Label>
                           <Input
                             placeholder="LinkedIn profile URL"
                             className="bg-background border-border"
                             {...register(`executives.${index}.linkedin_url`)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2"><XIcon className="w-3 h-3" /> X</Label>
+                          <Input
+                            placeholder="https://x.com/username"
+                            className="bg-background border-border"
+                            {...register(`executives.${index}.twitter_url`)}
                           />
                         </div>
                       </div>
