@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Trash2, Building2, Users, Video, BarChart3, MessageSquare, Newspaper,
   Check, ArrowLeft, ArrowRight, Upload, Globe, Github, Linkedin, Youtube, FileText,
+  GraduationCap, BookOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { initiateStripeConnect, initiateGoogleOAuth } from '@/lib/integrations';
@@ -1145,7 +1146,7 @@ export function CompanyRegister() {
 
                         <div className="grid sm:grid-cols-3 gap-4">
                           <div className="space-y-2">
-                            <Label className="flex items-center gap-2">🎓 Education</Label>
+                            <Label className="flex items-center gap-2"><GraduationCap className="w-3 h-3" /> Education</Label>
                             <Input
                               placeholder="e.g. Stanford University"
                               className="bg-background border-border"
@@ -1153,7 +1154,7 @@ export function CompanyRegister() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="flex items-center gap-2">📚 Major</Label>
+                            <Label className="flex items-center gap-2"><BookOpen className="w-3 h-3" /> Major</Label>
                             <Input
                               placeholder="e.g. Computer Science"
                               className="bg-background border-border"

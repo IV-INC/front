@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Plus, Trash2, Upload, Globe, Github, Linkedin, Youtube, FileText,
   Check, ArrowLeft, Video, MessageSquare, Newspaper, RefreshCw,
+  GraduationCap, BookOpen,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -964,7 +965,7 @@ export function CompanyEdit() {
 
                       <div className="grid sm:grid-cols-3 gap-4">
                         <div className="space-y-2">
-                          <Label className="flex items-center gap-2">🎓 Education</Label>
+                          <Label className="flex items-center gap-2"><GraduationCap className="w-3 h-3" /> Education</Label>
                           <Input
                             placeholder="e.g. Stanford University"
                             className="bg-background border-border"
@@ -972,7 +973,7 @@ export function CompanyEdit() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label className="flex items-center gap-2">📚 Major</Label>
+                          <Label className="flex items-center gap-2"><BookOpen className="w-3 h-3" /> Major</Label>
                           <Input
                             placeholder="e.g. Computer Science"
                             className="bg-background border-border"
