@@ -339,7 +339,10 @@ function AppContent() {
 
       if (session?.user) {
         // 서버에서 유저 존재 여부 검증
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        // Pass JWT directly to avoid deadlock: getUser() without JWT awaits
+        // initializePromise, but this callback may fire during _initialize(),
+        // causing a circular wait.
+        const { data: { user }, error: userError } = await supabase.auth.getUser(session.access_token);
         if (cancelled) return;
 
         if (userError || !user) {
