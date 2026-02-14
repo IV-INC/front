@@ -525,10 +525,12 @@ export function CompanyEdit() {
       setSubmitStatus('Updating leadership team...');
       await withTimeout(supabase.from('executives').delete().eq('company_id', company.id));
 
-      const executives = data.executives.map((exec) => {
+      const rawExecs = getValues('executives');
+      const executives = data.executives.map((exec, i) => {
         const school = exec.education?.trim() || '';
         const major = exec.major?.trim() || '';
         const education = school && major ? `${school} | ${major}` : school || major || null;
+        console.log(`[Edit] Exec ${i}: form.education="${rawExecs?.[i]?.education}", form.major="${rawExecs?.[i]?.major}", zod.education="${exec.education}", zod.major="${exec.major}", final="${education}"`);
         return {
           company_id: company.id,
           name: exec.name,
