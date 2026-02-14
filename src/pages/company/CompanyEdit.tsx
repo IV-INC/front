@@ -486,9 +486,9 @@ export function CompanyEdit() {
       // Refresh auth session to prevent SDK auth lock hanging queries
       setSubmitStatus('Preparing...');
       try {
-        await supabase.auth.getSession();
+        await withTimeout(supabase.auth.getSession(), 5000);
       } catch {
-        // Ignore refresh errors - continue with current session
+        // Ignore refresh errors or timeout - continue with current session
       }
 
       // 1. 회사 정보 업데이트

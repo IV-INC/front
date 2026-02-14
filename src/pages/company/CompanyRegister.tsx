@@ -503,9 +503,9 @@ export function CompanyRegister() {
       // Refresh auth session to prevent SDK auth lock hanging queries
       setSubmitStatus('Preparing...');
       try {
-        await supabase.auth.getSession();
+        await withTimeout(supabase.auth.getSession(), 5000);
       } catch {
-        // Ignore refresh errors - continue with current session
+        // Ignore refresh errors or timeout - continue with current session
       }
 
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
