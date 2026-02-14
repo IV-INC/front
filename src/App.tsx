@@ -334,101 +334,103 @@ function AppContent() {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (cancelled) return;
-
-      if (session?.user) {
-        // 서버에서 유저 존재 여부 검증
-        // Pass JWT directly to avoid deadlock: getUser() without JWT awaits
-        // initializePromise, but this callback may fire during _initialize(),
-        // causing a circular wait.
-        const { data: { user }, error: userError } = await supabase.auth.getUser(session.access_token);
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Defer all async work to avoid deadlock: this callback fires during
+      // SDK _initialize() → _notifyAllSubscribers(). Any Supabase call
+      // (getUser, DB queries) internally awaits initializePromise, which
+      // won't resolve until _initialize() finishes — but _initialize()
+      // awaits this callback, creating a circular wait.
+      // setTimeout breaks the cycle by letting _initialize() complete first.
+      setTimeout(async () => {
         if (cancelled) return;
 
-        if (userError || !user) {
-          await supabase.auth.signOut();
-          setUser(null);
-          setProfile(null);
-          if (!cancelled) setLoading(false);
-          return;
-        }
-
-        setUser(user);
-
-        // Google OAuth 회원가입 시 저장된 role 자동 적용
-        const pendingRole = localStorage.getItem('pending_oauth_role');
-        if (pendingRole && (pendingRole === 'startup' || pendingRole === 'investor')) {
-          localStorage.removeItem('pending_oauth_role');
-
-          const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
+        if (session?.user) {
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
           if (cancelled) return;
 
-          // 기존 프로필이 없거나 role이 없는 경우에만 설정
-          if (!existingProfile?.role) {
-            const { data: newProfile } = await supabase
-              .from('profiles')
-              .upsert(
-                {
-                  id: user.id,
-                  email: user.email!,
-                  role: pendingRole,
-                  full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-                  avatar_url: user.user_metadata?.avatar_url || null,
-                },
-                { onConflict: 'id' }
-              )
-              .select()
-              .single();
-            if (cancelled) return;
-            await supabase.auth.updateUser({ data: { role: pendingRole } });
-            setProfile(newProfile);
+          if (userError || !user) {
+            await supabase.auth.signOut();
+            setUser(null);
+            setProfile(null);
             if (!cancelled) setLoading(false);
             return;
           }
-        }
 
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          if (cancelled) return;
+          setUser(user);
 
-          // 이메일 가입 등으로 user_metadata에 role이 있지만 프로필에 role이 없는 경우 동기화
-          const metaRole = user.user_metadata?.role as string | undefined;
-          if (!profile?.role && metaRole && (metaRole === 'startup' || metaRole === 'investor')) {
-            const { data: syncedProfile } = await supabase
+          // Google OAuth 회원가입 시 저장된 role 자동 적용
+          const pendingRole = localStorage.getItem('pending_oauth_role');
+          if (pendingRole && (pendingRole === 'startup' || pendingRole === 'investor')) {
+            localStorage.removeItem('pending_oauth_role');
+
+            const { data: existingProfile } = await supabase
               .from('profiles')
-              .upsert(
-                {
-                  id: user.id,
-                  email: user.email!,
-                  role: metaRole,
-                  full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
-                  avatar_url: user.user_metadata?.avatar_url || null,
-                },
-                { onConflict: 'id' }
-              )
-              .select()
+              .select('role')
+              .eq('id', user.id)
               .single();
             if (cancelled) return;
-            setProfile(syncedProfile);
-          } else {
-            setProfile(profile);
+
+            if (!existingProfile?.role) {
+              const { data: newProfile } = await supabase
+                .from('profiles')
+                .upsert(
+                  {
+                    id: user.id,
+                    email: user.email!,
+                    role: pendingRole,
+                    full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+                    avatar_url: user.user_metadata?.avatar_url || null,
+                  },
+                  { onConflict: 'id' }
+                )
+                .select()
+                .single();
+              if (cancelled) return;
+              await supabase.auth.updateUser({ data: { role: pendingRole } });
+              setProfile(newProfile);
+              if (!cancelled) setLoading(false);
+              return;
+            }
           }
-        } catch {
-          // Continue even if profile fetch fails
+
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+            if (cancelled) return;
+
+            const metaRole = user.user_metadata?.role as string | undefined;
+            if (!profile?.role && metaRole && (metaRole === 'startup' || metaRole === 'investor')) {
+              const { data: syncedProfile } = await supabase
+                .from('profiles')
+                .upsert(
+                  {
+                    id: user.id,
+                    email: user.email!,
+                    role: metaRole,
+                    full_name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+                    avatar_url: user.user_metadata?.avatar_url || null,
+                  },
+                  { onConflict: 'id' }
+                )
+                .select()
+                .single();
+              if (cancelled) return;
+              setProfile(syncedProfile);
+            } else {
+              setProfile(profile);
+            }
+          } catch {
+            // Continue even if profile fetch fails
+          }
+        } else {
+          setUser(null);
+          setProfile(null);
         }
-      } else {
-        setUser(null);
-        setProfile(null);
-      }
-      if (!cancelled) setLoading(false);
+        if (!cancelled) setLoading(false);
+      }, 0);
     });
 
     return () => {
