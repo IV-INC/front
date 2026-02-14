@@ -500,21 +500,15 @@ export function CompanyRegister() {
         return;
       }
 
-      // Refresh auth session to prevent SDK auth lock hanging queries
-      setSubmitStatus('Preparing...');
-      try {
-        await withTimeout(supabase.auth.getSession(), 5000);
-      } catch {
-        // Ignore refresh errors or timeout - continue with current session
-      }
-
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
       setSubmitStatus('Checking account...');
-      const { data: existingCompany } = await withTimeout(
+      console.log('[CompanyRegister] Step 1: Checking existing company...');
+      const { data: existingCompany, error: checkError } = await withTimeout(
         supabase
           .from('companies').select('id').eq('user_id', user.id)
           .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin').maybeSingle()
       );
+      console.log('[CompanyRegister] Step 1 done:', { existingCompany, checkError });
 
       if (existingCompany) {
         setSubmitError('You already have a registered company. Redirecting to edit page...');
@@ -531,6 +525,7 @@ export function CompanyRegister() {
 
       // 2. 회사 등록
       setSubmitStatus('Registering company...');
+      console.log('[CompanyRegister] Step 2: Inserting company...');
       const { data: company, error: companyError } = await withTimeout(
         supabase
           .from('companies')
@@ -560,6 +555,7 @@ export function CompanyRegister() {
           .single()
       );
 
+      console.log('[CompanyRegister] Step 2 done:', { company, companyError });
       if (companyError || !company) {
         setSubmitError(companyError?.message || 'Failed to register company.');
         return;
@@ -675,6 +671,7 @@ export function CompanyRegister() {
       localStorage.removeItem('pending_integrations');
       navigate('/dashboard');
     } catch (error) {
+      console.error('[CompanyRegister] Submit failed:', error);
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
       setManualSubmitting(false);

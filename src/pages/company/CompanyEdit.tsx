@@ -483,16 +483,9 @@ export function CompanyEdit() {
         return;
       }
 
-      // Refresh auth session to prevent SDK auth lock hanging queries
-      setSubmitStatus('Preparing...');
-      try {
-        await withTimeout(supabase.auth.getSession(), 5000);
-      } catch {
-        // Ignore refresh errors or timeout - continue with current session
-      }
-
       // 1. 회사 정보 업데이트
       setSubmitStatus('Updating company info...');
+      console.log('[CompanyEdit] Step 1: Updating company info...');
       const { error: companyError } = await withTimeout(
         supabase
           .from('companies')
@@ -516,6 +509,7 @@ export function CompanyEdit() {
           .eq('id', company.id)
       );
 
+      console.log('[CompanyEdit] Step 1 done:', { companyError });
       if (companyError) {
         setSubmitError(`Failed to update company: ${companyError.message}`);
         return;
@@ -611,6 +605,7 @@ export function CompanyEdit() {
       await Promise.all(promises);
       navigate('/dashboard');
     } catch (error) {
+      console.error('[CompanyEdit] Submit failed:', error);
       setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
       setManualSubmitting(false);
