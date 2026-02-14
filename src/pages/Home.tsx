@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/lib/supabase';
 import {
   Zap, BarChart3, MessageSquare, Play, Video,
   User, BookOpen, Linkedin, ExternalLink,
@@ -170,6 +171,22 @@ function AnimatedChart() {
 export function Home() {
   const { user, getRole } = useAuthStore();
   const role = getRole();
+  const [hasCompany, setHasCompany] = useState(false);
+
+  useEffect(() => {
+    if (!user || role !== 'startup') {
+      setHasCompany(false);
+      return;
+    }
+    supabase
+      .from('companies')
+      .select('id')
+      .eq('user_id', user.id)
+      .or('rejection_reason.is.null,rejection_reason.neq.Deleted by admin')
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setHasCompany(!!data));
+  }, [user, role]);
 
   return (
     <div className="bg-neutral-950 text-white">
@@ -198,9 +215,14 @@ export function Home() {
                   <Button size="lg">Explore Startups</Button>
                 </Link>
               )}
-              {role === 'startup' && (
+              {role === 'startup' && !hasCompany && (
                 <Link to="/company/register">
                   <Button size="lg">Register</Button>
+                </Link>
+              )}
+              {role === 'startup' && hasCompany && (
+                <Link to="/dashboard">
+                  <Button size="lg">Dashboard</Button>
                 </Link>
               )}
               {!role && (
