@@ -144,6 +144,7 @@ function RoleSelectModal() {
 
       await supabase.auth.updateUser({ data: { role: selectedRole } });
       setProfile(data);
+      setIsLoading(false);
       // Modal will auto-close because getRole() now returns a value
     } catch (err) {
       console.error('Role select failed:', err);
@@ -157,7 +158,7 @@ function RoleSelectModal() {
       <div className="w-full max-w-md mx-4 bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl">
         <div className="px-6 pt-8 pb-4 text-center space-y-4">
           <div className="mx-auto">
-            <img src="/logo.png" alt="IV Logo" className="w-[60px] h-[60px] mx-auto invert" />
+            <img src="/logo-dark.jpg" alt="IV Logo" className="w-[60px] h-[60px] mx-auto rounded-lg" />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-serif font-semibold text-white">Welcome to IV</h1>
