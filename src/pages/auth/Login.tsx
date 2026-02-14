@@ -141,12 +141,7 @@ export function Login() {
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-neutral-300">Password</label>
-                  <Link to="/forgot-password" className="text-xs text-neutral-400 hover:text-white transition-colors">
-                    Forgot password?
-                  </Link>
-                </div>
+                <label className="block text-sm font-medium text-neutral-300">Password</label>
                 <input
                   type="password"
                   placeholder="••••••••"
@@ -154,6 +149,9 @@ export function Login() {
                   {...register('password')}
                 />
                 {errors.password && <p className="text-sm text-red-400">{errors.password.message}</p>}
+                <Link to="/forgot-password" className="block text-xs text-neutral-400 hover:text-white transition-colors">
+                  Forgot password?
+                </Link>
               </div>
 
               <button
