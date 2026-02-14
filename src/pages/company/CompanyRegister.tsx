@@ -500,6 +500,22 @@ export function CompanyRegister() {
         return;
       }
 
+      // Verify session is still valid before making DB queries
+      setSubmitStatus('Checking session...');
+      console.log('[CompanyRegister] Verifying session...');
+      try {
+        const { data: { session } } = await withTimeout(supabase.auth.getSession(), 8000);
+        console.log('[CompanyRegister] Session check:', session ? 'valid' : 'expired');
+        if (!session) {
+          setSubmitError('Session expired. Please log in again.');
+          setTimeout(() => navigate('/login', { replace: true }), 1500);
+          return;
+        }
+      } catch (sessionErr) {
+        console.warn('[CompanyRegister] Session check failed, continuing:', sessionErr);
+        // Session check failed (timeout/network) — try DB queries anyway
+      }
+
       // 1. 기존 회사 확인 (차단/삭제된 회사 제외)
       setSubmitStatus('Checking account...');
       console.log('[CompanyRegister] Step 1: Checking existing company...');

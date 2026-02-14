@@ -483,6 +483,21 @@ export function CompanyEdit() {
         return;
       }
 
+      // Verify session is still valid before making DB queries
+      setSubmitStatus('Checking session...');
+      console.log('[CompanyEdit] Verifying session...');
+      try {
+        const { data: { session } } = await withTimeout(supabase.auth.getSession(), 8000);
+        console.log('[CompanyEdit] Session check:', session ? 'valid' : 'expired');
+        if (!session) {
+          setSubmitError('Session expired. Please log in again.');
+          setTimeout(() => navigate('/login', { replace: true }), 1500);
+          return;
+        }
+      } catch (sessionErr) {
+        console.warn('[CompanyEdit] Session check failed, continuing:', sessionErr);
+      }
+
       // 1. 회사 정보 업데이트
       setSubmitStatus('Updating company info...');
       console.log('[CompanyEdit] Step 1: Updating company info...');
