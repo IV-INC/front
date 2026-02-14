@@ -142,10 +142,11 @@ function RoleSelectModal() {
         return;
       }
 
-      await supabase.auth.updateUser({ data: { role: selectedRole } });
+      // Set profile first so modal closes immediately
       setProfile(data);
       setIsLoading(false);
-      // Modal will auto-close because getRole() now returns a value
+      // Update user metadata in background (don't await - may hang due to SDK auth lock)
+      supabase.auth.updateUser({ data: { role: selectedRole } }).catch(() => {});
     } catch (err) {
       console.error('Role select failed:', err);
       setError('An unexpected error occurred. Please try again.');
