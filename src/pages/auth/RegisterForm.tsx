@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Building2, User, Mail } from 'lucide-react';
+import { ArrowLeft, Building2, User, Mail, Check, X } from 'lucide-react';
 import { ConsentForm } from '@/components/consent/ConsentForm';
 import { userConsentItems, founderConsentItems } from '@/lib/consent-data';
 import { useAuthStore } from '@/stores/authStore';
@@ -12,7 +12,10 @@ import type { UserRole } from '@/types/database';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, 'Password must contain at least one special character'),
   confirmPassword: z.string(),
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -21,6 +24,27 @@ const registerSchema = z.object({
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
+
+function PasswordRequirements({ password }: { password: string }) {
+  const rules = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One special character (!@#$...)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+  ];
+
+  if (!password) return null;
+
+  return (
+    <ul className="space-y-1 mt-1">
+      {rules.map((rule) => (
+        <li key={rule.label} className={`flex items-center gap-1.5 text-xs ${rule.met ? 'text-green-400' : 'text-red-400'}`}>
+          {rule.met ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+          {rule.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 type Step = 'consent' | 'form';
 
@@ -43,10 +67,13 @@ export function RegisterForm({ role }: { role: UserRole }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   });
+
+  const watchPassword = watch('password', '');
 
   const handleConsentComplete = async () => {
     // 이미 로그인된 사용자: role 설정 후 회사등록 페이지로 이동
@@ -242,7 +269,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-neutral-300">Password</label>
                 <input type="password" placeholder="••••••••" className={inputClass} {...register('password')} />
-                {errors.password && <p className="text-sm text-red-400">{errors.password.message}</p>}
+                <PasswordRequirements password={watchPassword} />
               </div>
 
               <div className="space-y-2">

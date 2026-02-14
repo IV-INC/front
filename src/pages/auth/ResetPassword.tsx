@@ -1,7 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Check, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+
+function PasswordRequirements({ password }: { password: string }) {
+  const rules = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One special character (!@#$...)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+  ];
+
+  if (!password) return null;
+
+  return (
+    <ul className="space-y-1 mt-1">
+      {rules.map((rule) => (
+        <li key={rule.label} className={`flex items-center gap-1.5 text-xs ${rule.met ? 'text-green-400' : 'text-red-400'}`}>
+          {rule.met ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+          {rule.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function ResetPassword() {
   const navigate = useNavigate();
@@ -52,8 +73,12 @@ export function ResetPassword() {
     e.preventDefault();
     setError(null);
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    const hasMinLength = password.length >= 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+
+    if (!hasMinLength || !hasUppercase || !hasSpecial) {
+      setError('Password does not meet all requirements.');
       return;
     }
 
@@ -169,8 +194,9 @@ export function ResetPassword() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={6}
+                    minLength={8}
                   />
+                  <PasswordRequirements password={password} />
                 </div>
 
                 <div className="space-y-2">

@@ -149,7 +149,7 @@ export function Login() {
                   {...register('password')}
                 />
                 {errors.password && <p className="text-sm text-red-400">{errors.password.message}</p>}
-                <Link to="/forgot-password" className="block text-xs text-neutral-400 hover:text-white transition-colors">
+                <Link to="/forgot-password" className="block text-xs text-neutral-400 hover:text-white transition-colors text-left">
                   Forgot password?
                 </Link>
               </div>
