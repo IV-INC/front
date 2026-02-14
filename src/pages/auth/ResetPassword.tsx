@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export function ResetPassword() {
@@ -11,19 +11,41 @@ export function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [expired, setExpired] = useState(false);
 
-  // Supabase automatically picks up the recovery token from the URL hash
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    let resolved = false;
+
+    // Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (resolved) return;
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        resolved = true;
         setSessionReady(true);
       }
     });
 
-    // Also check if already in a session (e.g. page reload)
+    // Also check if already in a session
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setSessionReady(true);
+      if (resolved) return;
+      if (data.session) {
+        resolved = true;
+        setSessionReady(true);
+      }
     });
+
+    // Timeout: if no session after 5s, the link is expired/invalid
+    const timer = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        setExpired(true);
+      }
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,19 +64,30 @@ export function ResetPassword() {
 
     setLoading(true);
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      password,
-    });
+    try {
+      // Refresh session to prevent SDK auth lock
+      await supabase.auth.getSession();
 
-    setLoading(false);
+      const result = await Promise.race([
+        supabase.auth.updateUser({ password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out. Please try again.')), 15000)
+        ),
+      ]);
 
-    if (updateError) {
-      setError(updateError.message);
-      return;
+      if (result.error) {
+        setError(result.error.message);
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(true);
+      setLoading(false);
+      setTimeout(() => navigate('/login', { replace: true }), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setLoading(false);
     }
-
-    setSuccess(true);
-    setTimeout(() => navigate('/login', { replace: true }), 2000);
   };
 
   const inputClass = 'w-full h-12 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-transparent';
@@ -77,12 +110,14 @@ export function ResetPassword() {
             </div>
             <div className="space-y-2">
               <h1 className="text-2xl font-serif font-semibold text-white">
-                {success ? 'Password Updated' : 'Set New Password'}
+                {success ? 'Password Updated' : expired ? 'Link Expired' : 'Set New Password'}
               </h1>
               <p className="text-sm text-neutral-400">
                 {success
                   ? 'Redirecting to login...'
-                  : 'Enter your new password below'}
+                  : expired
+                    ? 'This reset link has expired or is invalid'
+                    : 'Enter your new password below'}
               </p>
             </div>
           </div>
@@ -102,6 +137,21 @@ export function ResetPassword() {
                 <p className="text-sm text-neutral-400">
                   Your password has been successfully updated.
                 </p>
+              </div>
+            ) : expired ? (
+              <div className="text-center space-y-4">
+                <div className="mx-auto w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                </div>
+                <p className="text-sm text-neutral-400">
+                  Please request a new password reset link.
+                </p>
+                <Link
+                  to="/forgot-password"
+                  className="block w-full h-12 inline-flex items-center justify-center font-medium rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors"
+                >
+                  Request New Link
+                </Link>
               </div>
             ) : !sessionReady ? (
               <div className="text-center space-y-4">
