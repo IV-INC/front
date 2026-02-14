@@ -24,6 +24,8 @@ const Privacy = lazy(() => import('@/pages/legal/Privacy').then(m => ({ default:
 const Policies = lazy(() => import('@/pages/legal/Policies').then(m => ({ default: m.Policies })));
 const CopyrightDispute = lazy(() => import('@/pages/legal/CopyrightDispute').then(m => ({ default: m.CopyrightDispute })));
 const DPA = lazy(() => import('@/pages/legal/DPA').then(m => ({ default: m.DPA })));
+const ForgotPassword = lazy(() => import('@/pages/auth/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = lazy(() => import('@/pages/auth/ResetPassword').then(m => ({ default: m.ResetPassword })));
 
 // Loading fallback component
 function PageLoader() {
@@ -73,7 +75,7 @@ function RequireRole({ children }: { children: React.ReactNode }) {
   }, [isLoading, setLoading]);
 
   // Public pages - show immediately (but still show role modal if needed)
-  const publicPaths = ['/', '/login', '/register/company', '/register/member', '/oauth/callback', '/terms', '/privacy', '/policies', '/copyright', '/dpa'];
+  const publicPaths = ['/', '/login', '/forgot-password', '/reset-password', '/register/company', '/register/member', '/oauth/callback', '/terms', '/privacy', '/policies', '/copyright', '/dpa'];
   if (publicPaths.includes(location.pathname)) {
     const needsRoleOnPublic = user && !isLoading && !role && location.pathname !== '/login' && location.pathname !== '/register/company' && location.pathname !== '/register/member';
     return (
@@ -440,6 +442,8 @@ function AppContent() {
               {/* Public routes */}
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/register/company" element={<RegisterForm role="startup" />} />
               <Route path="/register/member" element={<RegisterForm role="investor" />} />
               <Route path="/select-role" element={<SelectRole />} />
