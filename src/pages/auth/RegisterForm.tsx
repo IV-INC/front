@@ -109,7 +109,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
   const onSubmit = async (data: RegisterFormData) => {
     setError(null);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
@@ -123,6 +123,12 @@ export function RegisterForm({ role }: { role: UserRole }) {
 
     if (signUpError) {
       setError(signUpError.message);
+      return;
+    }
+
+    // Supabase returns a user with empty identities if email already exists
+    if (signUpData?.user?.identities?.length === 0) {
+      setError('An account with this email already exists. Please log in instead.');
       return;
     }
 
