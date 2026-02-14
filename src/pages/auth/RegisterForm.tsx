@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Building2, User } from 'lucide-react';
+import { ArrowLeft, Building2, User, Mail } from 'lucide-react';
 import { ConsentForm } from '@/components/consent/ConsentForm';
 import { userConsentItems, founderConsentItems } from '@/lib/consent-data';
 import { useAuthStore } from '@/stores/authStore';
@@ -31,6 +31,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
   const isCompany = role === 'startup';
   const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState<string | null>(null);
 
   // 이미 로그인되어 있고 startup role이 있으면 바로 회사등록 페이지로 리다이렉트
   useEffect(() => {
@@ -89,6 +90,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
           full_name: data.fullName,
           role,
         },
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
@@ -97,7 +99,7 @@ export function RegisterForm({ role }: { role: UserRole }) {
       return;
     }
 
-    navigate('/');
+    setEmailSent(data.email);
   };
 
   const handleGoogleLogin = async () => {
@@ -118,6 +120,46 @@ export function RegisterForm({ role }: { role: UserRole }) {
         onBack={handleConsentBack}
         onComplete={handleConsentComplete}
       />
+    );
+  }
+
+  if (emailSent) {
+    return (
+      <div className="min-h-[calc(100vh-64px)] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-xl shadow-lg">
+            <div className="px-6 py-10 text-center space-y-6">
+              <div className="mx-auto w-16 h-16 rounded-full bg-neutral-800 flex items-center justify-center">
+                <Mail className="w-8 h-8 text-neutral-300" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-serif font-semibold text-white">Check your email</h1>
+                <p className="text-sm text-neutral-400 leading-relaxed">
+                  We sent a verification link to<br />
+                  <span className="text-white font-medium">{emailSent}</span>
+                </p>
+              </div>
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                Click the link in the email to verify your account. If you don't see it, check your spam folder.
+              </p>
+              <div className="pt-2 space-y-3">
+                <Link
+                  to="/login"
+                  className="block w-full h-12 inline-flex items-center justify-center font-medium rounded-lg bg-white text-black hover:bg-neutral-200 transition-colors"
+                >
+                  Go to Log In
+                </Link>
+                <button
+                  onClick={() => setEmailSent(null)}
+                  className="text-sm text-neutral-400 hover:text-white transition-colors underline"
+                >
+                  Try a different email
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 
